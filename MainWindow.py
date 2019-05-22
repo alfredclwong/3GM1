@@ -97,6 +97,24 @@ def data_create(record_id, template_id, control_values: list):
 
     if status != 0:
         pprint(response_json['PlateDataCreateResult'], width=120)
+
+def template_read_active_full(plate_template_name):
+    resp = requests.get(f'{API_URI}/template/read/active/full?plate_name={plate_template_name}',
+                        headers=get_api_key_header(_user_api_key),
+                        cert=_cert)
+    
+    if print_status(resp): return
+
+    response_json = resp.json()
+
+    status = response_json['PlateTemplateReadActiveByIdNameResult']['status']
+
+    if status != 0: 
+        print(f"Failed, status={status}")
+        return
+
+    return response_json['PlateTemplateReadActiveByIdNameResult']['plate_template']['id']
+
 # END
 
 
@@ -264,7 +282,7 @@ class MainWindow(QtGui.QMainWindow):
 
             # Look up Xenplate patient record using patient ID and create an entry
             data_create(record_search(patient_ID),
-                        '484d0310-f2b7-4cbb-8258-215e3cb0ffc2',
+                        template_read_active_full(arduino.name),
                         values)
 
             self.graph.getPlotItem().clear()
