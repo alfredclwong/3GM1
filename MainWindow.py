@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QGridLayout, QHBoxLayout, QFormLayout
+from PyQt5.QtWidgets import QGridLayout, QHBoxLayout, QFormLayout, QAction
 import pyqtgraph as pg
 
 import random
@@ -117,7 +117,6 @@ def template_read_active_full(plate_template_name):
 
 # END
 
-
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         """
@@ -135,24 +134,35 @@ class MainWindow(QtGui.QMainWindow):
 
         # Top row (horizontal box layout)
         self.top_row = QHBoxLayout()
-        # Form layout is a nice way to contain multiple text input fields
-        self.input_form = QFormLayout()
-        self.id = QtGui.QLineEdit()
-        self.input_form.addRow("Patient ID:", self.id)
-        self.date = QtGui.QLineEdit()
-        self.input_form.addRow("Date:", self.date)
-        self.top_row.addLayout(self.input_form)
-        self.top_row.addWidget(QtGui.QPushButton("Settings")) # dummy
+        
+        self.dropdown = QtGui.QToolButton(self)
+        toolbuttonSizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
+        self.dropdown.setSizePolicy(toolbuttonSizePolicy)
+        self.dropdown.setText('Select recordings')
+        self.toolmenu = QtGui.QMenu(self)
+        self.dropdown.setMenu(self.toolmenu)
+        self.toolmenu.triggered.connect(self.update_legends)
+        self.dropdown.setPopupMode(QtGui.QToolButton.InstantPopup)
+        self.top_row.addWidget(self.dropdown)
+        
+        self.detect = QtGui.QPushButton("Detect")
+        self.top_row.addWidget(self.detect)
 
         # Middle row (just graph)
         self.graph = pg.PlotWidget()
 
         # Bottom row (horizontal box layout)
         self.bottom_row = QHBoxLayout()
-        self.dropdown = QtGui.QComboBox() # todo: add selection functionality?
-        self.bottom_row.addWidget(self.dropdown, stretch=1)
-        self.refresh = QtGui.QPushButton("Detect")
-        self.bottom_row.addWidget(self.refresh)
+        
+        # Form layout is a nice way to contain multiple text input fields
+        self.input_form = QFormLayout()
+        self.id = QtGui.QLineEdit()
+        self.input_form.addRow("Patient ID:", self.id)
+        self.date = QtGui.QLineEdit()
+        #self.input_form.addRow("Date:", self.date)
+        self.bottom_row.addLayout(self.input_form)
+        #self.bottom_row.addWidget(QtGui.QPushButton("Settings")) # dummy
+        
         self.startstop = QtGui.QPushButton(">/=")
         self.bottom_row.addWidget(self.startstop)
         self.send = QtGui.QPushButton("Send")
@@ -167,8 +177,8 @@ class MainWindow(QtGui.QMainWindow):
 
         # Now add functionality
         # Bottom row
-        self.refresh.clicked.connect(self.refresh_ports)
-        self.startstop.clicked.connect(self.plotter)
+        self.detect.clicked.connect(self.detect_ports)
+        self.startstop.clicked.connect(self.start_stop)
         self.send.clicked.connect(self.sender)
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
@@ -177,14 +187,24 @@ class MainWindow(QtGui.QMainWindow):
         self.timer = QtCore.QTimer()
         self.prevs = []
 
-    def refresh_ports(self):
+    def update_legends(self):
+        self.graph.clear()
+        try:
+            self.legend.scene().removeItem(self.legend)
+        except:
+            pass
+        self.legend = self.graph.getPlotItem().addLegend()
+        self.curves = {action.text(): self.graph.getPlotItem().plot(name=action.text())
+                       for action in self.toolmenu.actions() if action.isChecked()}
+
+    def detect_ports(self):
         """
-        Within refresh_ports():
-        1. Detect connection
+        Within detect_ports():
+        1. detect_ports connection
         2. Send header request ('A')
         3. Create MedicalArduino() using header
         
-        Outside refresh_ports():
+        Outside detect_ports():
         4. Send data requests according to sample rate
         5. Update GUI?
         """
@@ -194,12 +214,11 @@ class MainWindow(QtGui.QMainWindow):
         
         # Reset graph
         self.graph.clear()
-        self.graph.getPlotItem().addLegend()
         
         # Udpate self.dropdown using serial.tools.list_ports.comports()
-        self.dropdown.clear()
+        self.toolmenu.clear()
         for p in serial.tools.list_ports.comports():
-            print("Detected device at port", p.device)
+            print("detected device at port", p.device)
             ser = serial.Serial(p.device, 115200, timeout=0)
             time.sleep(2) # temporary workaround
             ser.write(b'A')
@@ -215,14 +234,21 @@ class MainWindow(QtGui.QMainWindow):
             arduino = MedicalArduino(ser, header, self.graph.getPlotItem())
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
-            self.dropdown.addItems([arduino.name])
+            for i, data_label in enumerate(arduino.data_labels):
+                action = self.toolmenu.addAction(data_label)
+                action.setCheckable(True)
+                action.setShortcut(f"Ctrl+{i+1}")
+                action.setChecked(True)
+            self.update_legends()
 
-    def plotter(self):  # called when the start/stop button is clicked
+    def start_stop(self):  # called when the start/stop button is clicked
         """
         Set up graph according to selected arduinos and start timer
-        TODO: legends not showing at the moment
         """
         if not self.timer.isActive():
+            #for action in self.toolmenu.actions():
+            #    action.setCheckable(False)
+            
             # Reset data plots
             for arduino in self.arduinos:
                 for label in arduino.data_labels:
@@ -233,17 +259,22 @@ class MainWindow(QtGui.QMainWindow):
             self.timer.start(0)
             print("Recording started")
         else:
+            #for action in self.toolmenu.actions():
+            #    action.setCheckable(True)
             self.timer.stop()
             print("Recording ended")
 
     def updater(self):  # called regularly by QTimer
         """
         Query arduinos for new data according to their sampling rates.
-        Currently arduinos will also update the graph themselves.
+        Update active curves (according to toolmenu selection) with the returned data.
         """
         for i in range(len(self.arduinos)):
             if time.time() - self.prevs[i] > 1.0 / self.arduinos[i].sampling_rate:
-                self.arduinos[i].sample()
+                data = self.arduinos[i].sample()
+                for label in data.keys():
+                    if label in [action.text() for action in self.toolmenu.actions() if action.isChecked()]:
+                        self.curves[label].setData(data[label])
                 self.prevs[i] = time.time()
 
     def sender(self):  # called when the send button is clicked
