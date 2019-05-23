@@ -12,15 +12,6 @@ import time
 
 from MedicalArduino import MedicalArduino
 
-# The following lines of code were provided by the L2S2 employee:
-# BEGIN
-import asyncio
-from datetime import datetime
-import requests
-import websockets
-import inspect
-import uuid
-from pprint import pprint
 from APICommands import *
 
 class MainWindow(QtGui.QMainWindow):

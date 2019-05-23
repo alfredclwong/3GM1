@@ -1,3 +1,13 @@
+# The following lines of code were provided by the L2S2 employee:
+# BEGIN
+import asyncio
+from datetime import datetime
+import requests
+import websockets
+import inspect
+import uuid
+from pprint import pprint
+
 # ARM dev server
 API_URI = 'https://apicued2019.xenplate.com/internalapi'
 API_KEY = 'hqQuiDT6rdh3dRJpEKXTXfunjMZCN5vG'
