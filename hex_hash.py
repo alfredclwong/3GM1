@@ -4,7 +4,7 @@ import hashlib
 import base64
 import requests
 
-url = 'https://api.github.com/repos/alfredclwong/3GM1/contents/hashes.txt'
+url = 'https://api.github.com/repos/alfredclwong/3GM1/contents/Arduino/hashes.txt'
 avr_dir = "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\"
 avr_exe = os.path.join(avr_dir, "bin\\avrdude.exe")
 avr_conf = os.path.join(avr_dir, "etc\\avrdude.conf")
