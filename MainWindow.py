@@ -132,41 +132,60 @@ class MainWindow(QtGui.QMainWindow):
         self.central = QtGui.QWidget()
         self.setCentralWidget(self.central)
 
-        # Top row (horizontal box layout)
+        ###################################
+        # Top row (horizontal box layout) #
+        ###################################
         self.top_row = QHBoxLayout()
         
+        # Checkable dropdown menu for recording selection
         self.dropdown = QtGui.QToolButton(self)
-        toolbuttonSizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
-        self.dropdown.setSizePolicy(toolbuttonSizePolicy)
+        self.top_row.addWidget(self.dropdown)
+        # set size to expand horizontally, stay fixed vertically
+        dropdownSizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+                                               QtGui.QSizePolicy.Fixed)
+        self.dropdown.setSizePolicy(dropdownSizePolicy)
+        # set text to show when not expanded
         self.dropdown.setText('Select recordings')
+        # set the menu to show when expanded
         self.toolmenu = QtGui.QMenu(self)
         self.dropdown.setMenu(self.toolmenu)
+        # functionality: expansion and checking
         self.toolmenu.triggered.connect(self.update_legends)
         self.dropdown.setPopupMode(QtGui.QToolButton.InstantPopup)
-        self.top_row.addWidget(self.dropdown)
         
+        # Detect button
         self.detect = QtGui.QPushButton("Detect")
         self.top_row.addWidget(self.detect)
+        self.detect.clicked.connect(self.detect_ports)
 
-        # Middle row (just graph)
+        ###########################
+        # Middle row (just graph) #
+        ###########################
         self.graph = pg.PlotWidget()
 
-        # Bottom row (horizontal box layout)
+        ######################################
+        # Bottom row (horizontal box layout) #
+        ######################################
         self.bottom_row = QHBoxLayout()
         
         # Form layout is a nice way to contain multiple text input fields
         self.input_form = QFormLayout()
+        self.bottom_row.addLayout(self.input_form)
         self.id = QtGui.QLineEdit()
         self.input_form.addRow("Patient ID:", self.id)
-        self.date = QtGui.QLineEdit()
+        #self.date = QtGui.QLineEdit()
         #self.input_form.addRow("Date:", self.date)
-        self.bottom_row.addLayout(self.input_form)
         #self.bottom_row.addWidget(QtGui.QPushButton("Settings")) # dummy
         
+        # Start stop button
         self.startstop = QtGui.QPushButton(">/=")
         self.bottom_row.addWidget(self.startstop)
+        self.startstop.clicked.connect(self.start_stop)
+
+        # Send button
         self.send = QtGui.QPushButton("Send")
         self.bottom_row.addWidget(self.send)
+        self.send.clicked.connect(self.sender)
 
         # Add all 3 rows to self.layout and assign self.layout to self.central
         self.layout = QGridLayout()
@@ -175,19 +194,16 @@ class MainWindow(QtGui.QMainWindow):
         self.layout.addLayout(self.bottom_row, 2, 0)
         self.central.setLayout(self.layout)
 
-        # Now add functionality
-        # Bottom row
-        self.detect.clicked.connect(self.detect_ports)
-        self.startstop.clicked.connect(self.start_stop)
-        self.send.clicked.connect(self.sender)
-
         # Other stuff - for keeping track of MedicalArduino instances and timing
         self.arduinos = []
-        
         self.timer = QtCore.QTimer()
         self.prevs = []
 
     def update_legends(self):
+        """
+        Clear the graph, add in an empty legend box (which tracks the plotted curves),
+        and plot empty data for each recording type that is selected in the dropdown menu.
+        """
         self.graph.clear()
         try:
             self.legend.scene().removeItem(self.legend)
