@@ -13,8 +13,7 @@ PulseOximeter pox;
 uint32_t tsLastReport = 0;
 uint32_t tsElapsed = 0;
 int beats = 0;
-
- 
+char header[] = "{\"name\":\"SP02\",\"labels\":[\"Heart_rate\",\"Oxygen\"],\"data_range\":[[0,150],[0,100]],\"sampling_rate\":1,\"Version\":\"1.0_Alpha\"}";
 // Callback (registered below) fired when a pulse is detected
 void onBeatDetected()
 {
@@ -46,7 +45,6 @@ void setup()
  
     // Register a callback for the beat detection
     pox.setOnBeatDetectedCallback(onBeatDetected);
-
     tsLastReport = millis();
 }
  
@@ -57,7 +55,6 @@ void loop()
   
   if (Serial.available()) {
     char incomingByte = Serial.read();
-
     /*
      * 1. Wait for setup signal from Pi
      * 2. Send header to Pi
@@ -75,7 +72,7 @@ void loop()
     // For both, a value of 0 means "invalid"
     switch (incomingByte) {
       case 'A':
-        Serial.println("{\"name\":\"Max30100_Oximeter\",\"labels\":[\"Heart_rate\",\"Oxygen\"],\"data_range\"=[[0,150],[0,100]],\"sampling_rate\"=1}");
+        Serial.println(header);
         break;
         
       case 'B':
