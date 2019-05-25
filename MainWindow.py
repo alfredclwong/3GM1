@@ -40,10 +40,12 @@ class PlotCanvas(FigureCanvas):
         FigureCanvas.updateGeometry(self)
 
     def plot(self, data_dict):
+        self.figure.clear()
         ax = self.figure.add_subplot(111)
         for label, data in data_dict.items():
             ax.plot(data, label=label)
-        plt.legend(loc='upper left')
+        ax.legend(loc='upper left')
+        self.draw()
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -63,15 +65,15 @@ class MainWindow(QMainWindow):
     def initUI(self):
         """
         The GUI design is split into three rows, organised as follows:
-        Top row.    Contains input fields required for labelling the recorded data such
-                    as patient ID and date/time. Also contains a settings button which
-                    may later be used for viewing/changing Arduino properties.
-        Middle row. Contains a graph capable of plotting data from multiple recordings.
-        Bottom row. Contains functionality for controlling recordings (e.g. start/stop).
+        Interface row.  Used for controlling the Arduino-Pi interfaces - detecting/refreshing
+                        connections and selecting which recordings to visualise/send.
+        Visual row.     Contains a graph capable of plotting data from multiple recordings.
+                        In the future could auto-toggle/format to visualise other data types.
+        Data row.       Used for creating (>/=), tagging (ID) and sending (Send) data.
         """
         self.setWindowTitle(self.title)
 
-        # Set size and centre window
+        # Set size and centre the window in the desktop screen
         self.setGeometry(0, 0, self.width, self.height)
         qtRectangle = self.frameGeometry()
         centerPoint = QDesktopWidget().availableGeometry().center()
@@ -82,60 +84,65 @@ class MainWindow(QMainWindow):
         self.central = QWidget()
         self.setCentralWidget(self.central)
 
-        # TOP ROW (horizontal box layout)
-        self.top_row = QHBoxLayout()
+        # INTERFACE ROW
+        self.interface_row = QHBoxLayout()
         
         # Checkable dropdown menu for recording selection
         self.dropdown = QToolButton(self)
-        self.top_row.addWidget(self.dropdown)
-        dropdownSizePolicy = QSizePolicy(QSizePolicy.Expanding,
-                                         QSizePolicy.Fixed)
+        dropdownSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.dropdown.setSizePolicy(dropdownSizePolicy)
         self.dropdown.setText('Select recordings')
+        self.dropdown.setPopupMode(QToolButton.InstantPopup)
         self.toolmenu = QMenu(self)
-        self.dropdown.setMenu(self.toolmenu)
-        self.toolmenu.triggered.connect(lambda: self.graph.plot({
+        self.plot = lambda: self.graph.plot({
             action.text(): arduino.data[action.text()]
             for arduino in self.arduinos
-            for action in self.toolmenu.actions() if action.isChecked()}))
-        self.dropdown.setPopupMode(QToolButton.InstantPopup)
+            for action in self.toolmenu.actions() if action.isChecked()})
+        self.toolmenu.triggered.connect(self.plot)
+        self.dropdown.setMenu(self.toolmenu)
+        self.interface_row.addWidget(self.dropdown)
         
         # Detect button
         self.detect = QPushButton("Detect")
-        self.top_row.addWidget(self.detect)
         self.detect.clicked.connect(self.detect_ports)
+        self.interface_row.addWidget(self.detect)
 
-        # MIDDLE ROW (just graph)
+        # VISUAL ROW
+        self.visual_row = QHBoxLayout()
         self.graph = PlotCanvas(self)
+        self.visual_row.addWidget(self.graph)
 
-        # BOTTOM ROW (horizontal box layout)
-        self.bottom_row = QHBoxLayout()
+        # DATA ROW
+        self.data_row = QHBoxLayout()
         
         # Form layout is a nice way to contain multiple text input fields
         self.input_form = QFormLayout()
-        self.bottom_row.addLayout(self.input_form)
         self.id = QLineEdit()
         self.input_form.addRow("Patient ID:", self.id)
+        self.data_row.addLayout(self.input_form)
         
         # Start stop button
         self.startstop = QPushButton(">/=")
-        self.bottom_row.addWidget(self.startstop)
         self.startstop.clicked.connect(self.start_stop)
+        self.data_row.addWidget(self.startstop)
 
         # Send button
         self.send = QPushButton("Send")
-        self.bottom_row.addWidget(self.send)
         self.send.clicked.connect(self.sender)
+        self.data_row.addWidget(self.send)
 
         # Add all 3 rows to self.layout and assign self.layout to self.central
         self.layout = QGridLayout()
-        self.layout.addLayout(self.top_row, 0, 0)
-        self.layout.addWidget(self.graph, 2, 0)
-        self.layout.addLayout(self.bottom_row, 1, 0)
+        self.layout.addLayout(self.interface_row, 0, 0)
+        self.layout.addLayout(self.data_row, 1, 0)
+        self.layout.addLayout(self.visual_row, 2, 0)
         self.central.setLayout(self.layout)
-        
-        self.statusBar().showMessage('status bar message')
+        self.statusBar().showMessage('')
         self.show()
+
+    def display(self, msg):
+        print(msg)
+        self.statusBar().showMessage(str(msg))
 
     def detect_ports(self):
         """
@@ -155,7 +162,7 @@ class MainWindow(QMainWindow):
         # Udpate self.dropdown using serial.tools.list_ports.comports()
         self.toolmenu.clear()
         for p in serial.tools.list_ports.comports():
-            print("detected device at port", p.device)
+            self.display("detected device at port {}".format(p.device))
             if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
                 print("hwid mismatch")
                 continue
@@ -201,12 +208,12 @@ class MainWindow(QMainWindow):
             # Connect the updater() function to the clock and start it
             self.timer.timeout.connect(self.updater)
             self.timer.start(0)
-            print("Recording started")
+            self.display("Recording started")
         else:
             #for action in self.toolmenu.actions():
             #    action.setCheckable(True)
             self.timer.stop()
-            print("Recording ended")
+            self.display("Recording ended")
 
     def updater(self):  # called regularly by QTimer
         """
@@ -215,10 +222,8 @@ class MainWindow(QMainWindow):
         """
         for i in range(len(self.arduinos)):
             if time.time() - self.prevs[i] > 1.0 / self.arduinos[i].sampling_rate:
-                data = self.arduinos[i].sample()
-                for label in data.keys():
-                    if label in [action.text() for action in self.toolmenu.actions() if action.isChecked()]:
-                        self.curves[label].setData(data[label])
+                self.arduinos[i].sample()
+                self.plot
                 self.prevs[i] = time.time()
 
     def sender(self):  # called when the send button is clicked

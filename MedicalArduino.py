@@ -18,6 +18,11 @@ class MedicalArduino:
         
         self.data = {label: [] for label in self.data_labels}#["time"] + self.data_labels}
         self.start = time.time()
+        
+        #self.active_data = [True] * 
+    
+    def set_active_data(self):
+        pass
     
     def sample(self):
         """
@@ -33,11 +38,11 @@ class MedicalArduino:
             j = self.ser.readline()
             if j.endswith(b'\n'):
                 break
-        data = json.loads(j)
+        data = json.loads(j.decode())
         if not any(x == 0 for x in data.values()):
             for label in self.data_labels:
                 self.data[label].append(data[label])
             #self.data["time"].append(time.time() - self.start)
         #print(data)
         #print(self.data)
-        return self.data
+        #return self.data
