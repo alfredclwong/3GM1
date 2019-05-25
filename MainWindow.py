@@ -155,11 +155,13 @@ class MainWindow(QMainWindow):
         4. Send data requests according to sample rate
         5. Update GUI?
         """
-        # Close all currently open ports
+        # Close all currently open ports and reset arduino list
         for arduino in self.arduinos:
             arduino.ser.close()
+        self.arduinos = []
         
         # Udpate self.dropdown using serial.tools.list_ports.comports()
+        # TODO: submenus for each arduino and its data_labels in toolmenu
         self.toolmenu.clear()
         for p in serial.tools.list_ports.comports():
             self.display("detected device at port {}".format(p.device))
