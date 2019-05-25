@@ -2,10 +2,10 @@ from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QDesktopWidget, QSizePolicy,
                              QGridLayout, QHBoxLayout, QFormLayout,
                              QToolButton, QAction, QMenu, QPushButton, QLineEdit)
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from bluetooth import *
 
 import sys
 import random
@@ -17,10 +17,12 @@ import json
 import time
 
 from MedicalArduino import MedicalArduino
+from BluetoothArduino import BluetoothArduino
 from APICommands import *
 
 baudrate = 9600
 hwids = [["1A86", "7523"]]
+bluetooth_devices = ["HC-06"]
 
 class PlotCanvas(FigureCanvas):
     """
@@ -155,14 +157,16 @@ class MainWindow(QMainWindow):
         4. Send data requests according to sample rate
         5. Update GUI?
         """
-        # Close all currently open ports and reset arduino list
+        # Close all currently open ports
         for arduino in self.arduinos:
             arduino.ser.close()
-        self.arduinos = []
         
-        # Udpate self.dropdown using serial.tools.list_ports.comports()
+        # Update self.dropdown (via self.toolmenu) and self.arduinos
         # TODO: submenus for each arduino and its data_labels in toolmenu
         self.toolmenu.clear()
+        self.arduinos = []
+        
+        # Scan through USB connections: serial.tools.list_ports.comports()
         for p in serial.tools.list_ports.comports():
             self.display("detected device at port {}".format(p.device))
             if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
@@ -188,6 +192,41 @@ class MainWindow(QMainWindow):
                 action.setCheckable(True)
                 action.setShortcut("Ctrl+{}".format(i+1))
                 action.setChecked(True)
+        
+        # Scan through Bluetooth connections
+        self.display("scanning for nearby bluetooth devices...")
+        nearby_devices = discover_devices(lookup_names=True)
+        print(nearby_devices)
+        for i, (addr, name) in enumerate(nearby_devices):
+            if name not in bluetooth_devices:
+                continue
+            self.display("detected bluetooth device at address {}".format(addr))
+            sock = BluetoothSocket(RFCOMM)
+            try:
+                sock.connect((addr, i+1))  # open bluetooth socket on port i+1 (no port 0)
+            except btcommon.BluetoothError as err:
+                print(err)
+                continue
+            sock.send('A')
+            data = b''
+            while True:
+                data += sock.recv(1024)
+                if data.endswith(b'\n'):
+                    break
+            header = json.loads(data.decode())
+            print(header)
+            
+            # Create a new BluetoothArduino
+            arduino = BluetoothArduino(sock, header)
+            self.arduinos.append(arduino)
+            self.prevs.append(0) # such that data will be requested on '>/=' click
+            for j, data_label in enumerate(arduino.data_labels):
+                action = self.toolmenu.addAction(data_label)
+                action.setCheckable(True)
+                action.setShortcut("Ctrl+{}".format(j+1))
+                action.setChecked(True)
+        
+        # Replot graph such that the legend updates
         data_dict = {action.text(): arduino.data[action.text()]
             for arduino in self.arduinos
             for action in self.toolmenu.actions() if action.isChecked()}

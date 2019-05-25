@@ -1,13 +1,15 @@
 import json
 import time
 
-class MedicalArduino:
-    def __init__(self, ser, header_dict):
+# TODO incorporate MedicalArduino (rename to SerialArduino?) and BluetoothArduino into a class hierachy
+
+class BluetoothArduino:
+    def __init__(self, sock, header_dict):
         """
         Interpret and store the decoded json dictionary from the handshake header file.
         Start an empty data tracking dictionary, according to data_labels.
         """
-        self.ser = ser
+        self.sock = sock
         
         self.name           = header_dict["name"]
         self.data_labels    = header_dict["labels"]
@@ -31,19 +33,18 @@ class MedicalArduino:
         Return the entire history of all recorded data (regardless of whether or not a
         null value was read or if the data series are not 'checked' in the GUI).
         """
-        self.ser.write(b'B')
-        time.sleep(0.1)
-        self.ser.flush()
+        self.sock.send('B')
+        data = b''
         while True:
-            j = self.ser.readline()
-            if j.endswith(b'\n'):
+            data += sock.recv(1024)
+            if data.endswith(b'\n'):
                 break
-        data = json.loads(j.decode())
+        data = json.loads(data.decode())
         if not any(x == 0 for x in data.values()):
             for label in self.data_labels:
                 self.data[label].append(data[label])
             #self.data["time"].append(time.time() - self.start)
-        #print(data)
+        print(data)
         #print(self.data)
         #return self.data
 
