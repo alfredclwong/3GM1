@@ -1,7 +1,13 @@
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QGridLayout, QHBoxLayout, QFormLayout, QAction
-import pyqtgraph as pg
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QDesktopWidget, QSizePolicy,
+                             QGridLayout, QHBoxLayout, QFormLayout,
+                             QToolButton, QAction, QMenu, QPushButton, QLineEdit)
 
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+
+import sys
 import random
 import numpy as np
 import time
@@ -11,11 +17,50 @@ import json
 import time
 
 from MedicalArduino import MedicalArduino
-
 from APICommands import *
 
-class MainWindow(QtGui.QMainWindow):
+baudrate = 9600
+hwids = [["1A86", "7523"]]
+
+class PlotCanvas(FigureCanvas):
+    """
+    
+    """
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        """
+        
+        """
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = self.fig.add_subplot(111)
+        FigureCanvas.__init__(self, self.fig)
+        self.setParent(parent)
+        FigureCanvas.setSizePolicy(self,
+                QSizePolicy.Expanding,
+                QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+
+    def plot(self, data_dict):
+        ax = self.figure.add_subplot(111)
+        for label, data in data_dict.items():
+            ax.plot(data, label=label)
+        plt.legend(loc='upper left')
+
+class MainWindow(QMainWindow):
     def __init__(self, parent=None):
+        super(MainWindow, self).__init__(parent)
+
+        # Other stuff - for keeping track of MedicalArduino instances and timing
+        self.arduinos = []
+        self.timer = QtCore.QTimer()
+        self.prevs = []
+        
+        # UI stuff
+        self.title = "title"
+        self.width = 640
+        self.height = 480
+        self.initUI()
+
+    def initUI(self):
         """
         The GUI design is split into three rows, organised as follows:
         Top row.    Contains input fields required for labelling the recorded data such
@@ -24,91 +69,73 @@ class MainWindow(QtGui.QMainWindow):
         Middle row. Contains a graph capable of plotting data from multiple recordings.
         Bottom row. Contains functionality for controlling recordings (e.g. start/stop).
         """
-        # Create the main window and a central widget which will hold all subcomponents
-        super(MainWindow, self).__init__(parent)
-        self.central = QtGui.QWidget()
+        self.setWindowTitle(self.title)
+
+        # Set size and centre window
+        self.setGeometry(0, 0, self.width, self.height)
+        qtRectangle = self.frameGeometry()
+        centerPoint = QDesktopWidget().availableGeometry().center()
+        qtRectangle.moveCenter(centerPoint)
+        self.move(qtRectangle.topLeft())
+        
+        # Create a central widget which will hold all subcomponents
+        self.central = QWidget()
         self.setCentralWidget(self.central)
 
-        ###################################
-        # Top row (horizontal box layout) #
-        ###################################
+        # TOP ROW (horizontal box layout)
         self.top_row = QHBoxLayout()
         
         # Checkable dropdown menu for recording selection
-        self.dropdown = QtGui.QToolButton(self)
+        self.dropdown = QToolButton(self)
         self.top_row.addWidget(self.dropdown)
-        # set size to expand horizontally, stay fixed vertically
-        dropdownSizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                               QtGui.QSizePolicy.Fixed)
+        dropdownSizePolicy = QSizePolicy(QSizePolicy.Expanding,
+                                         QSizePolicy.Fixed)
         self.dropdown.setSizePolicy(dropdownSizePolicy)
-        # set text to show when not expanded
         self.dropdown.setText('Select recordings')
-        # set the menu to show when expanded
-        self.toolmenu = QtGui.QMenu(self)
+        self.toolmenu = QMenu(self)
         self.dropdown.setMenu(self.toolmenu)
-        # functionality: expansion and checking
-        self.toolmenu.triggered.connect(self.update_legends)
-        self.dropdown.setPopupMode(QtGui.QToolButton.InstantPopup)
+        self.toolmenu.triggered.connect(lambda: self.graph.plot({
+            action.text(): arduino.data[action.text()]
+            for arduino in self.arduinos
+            for action in self.toolmenu.actions() if action.isChecked()}))
+        self.dropdown.setPopupMode(QToolButton.InstantPopup)
         
         # Detect button
-        self.detect = QtGui.QPushButton("Detect")
+        self.detect = QPushButton("Detect")
         self.top_row.addWidget(self.detect)
         self.detect.clicked.connect(self.detect_ports)
 
-        ###########################
-        # Middle row (just graph) #
-        ###########################
-        self.graph = pg.PlotWidget()
+        # MIDDLE ROW (just graph)
+        self.graph = PlotCanvas(self)
 
-        ######################################
-        # Bottom row (horizontal box layout) #
-        ######################################
+        # BOTTOM ROW (horizontal box layout)
         self.bottom_row = QHBoxLayout()
         
         # Form layout is a nice way to contain multiple text input fields
         self.input_form = QFormLayout()
         self.bottom_row.addLayout(self.input_form)
-        self.id = QtGui.QLineEdit()
+        self.id = QLineEdit()
         self.input_form.addRow("Patient ID:", self.id)
-        #self.date = QtGui.QLineEdit()
-        #self.input_form.addRow("Date:", self.date)
-        #self.bottom_row.addWidget(QtGui.QPushButton("Settings")) # dummy
         
         # Start stop button
-        self.startstop = QtGui.QPushButton(">/=")
+        self.startstop = QPushButton(">/=")
         self.bottom_row.addWidget(self.startstop)
         self.startstop.clicked.connect(self.start_stop)
 
         # Send button
-        self.send = QtGui.QPushButton("Send")
+        self.send = QPushButton("Send")
         self.bottom_row.addWidget(self.send)
         self.send.clicked.connect(self.sender)
 
         # Add all 3 rows to self.layout and assign self.layout to self.central
         self.layout = QGridLayout()
         self.layout.addLayout(self.top_row, 0, 0)
-        self.layout.addWidget(self.graph, 1, 0)
-        self.layout.addLayout(self.bottom_row, 2, 0)
+        self.layout.addWidget(self.graph, 2, 0)
+        self.layout.addLayout(self.bottom_row, 1, 0)
         self.central.setLayout(self.layout)
-
-        # Other stuff - for keeping track of MedicalArduino instances and timing
-        self.arduinos = []
-        self.timer = QtCore.QTimer()
-        self.prevs = []
-
-    def update_legends(self):
-        """
-        Clear the graph, add in an empty legend box (which tracks the plotted curves),
-        and plot empty data for each recording type that is selected in the dropdown menu.
-        """
-        self.graph.clear()
-        try:
-            self.legend.scene().removeItem(self.legend)
-        except:
-            pass
-        self.legend = self.graph.getPlotItem().addLegend()
-        self.curves = {action.text(): self.graph.getPlotItem().plot(name=action.text())
-                       for action in self.toolmenu.actions() if action.isChecked()}
+        
+        self.statusBar().showMessage('status bar message')
+        self.show()
 
     def detect_ports(self):
         """
@@ -125,14 +152,14 @@ class MainWindow(QtGui.QMainWindow):
         for arduino in self.arduinos:
             arduino.ser.close()
         
-        # Reset graph
-        self.graph.clear()
-        
         # Udpate self.dropdown using serial.tools.list_ports.comports()
         self.toolmenu.clear()
         for p in serial.tools.list_ports.comports():
             print("detected device at port", p.device)
-            ser = serial.Serial(p.device, 115200, timeout=0)
+            if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
+                print("hwid mismatch")
+                continue
+            ser = serial.Serial(p.device, baudrate, timeout=0)
             time.sleep(2) # temporary workaround
             ser.write(b'A')
             time.sleep(0.5) # temporary workaround
@@ -140,19 +167,23 @@ class MainWindow(QtGui.QMainWindow):
                 j = ser.readline()
                 if j.endswith(b'\n'):
                     break
-            header = json.loads(j)
+            header = json.loads(j.decode())
             print(header)
 
             # Create a new MedicalArduino using this information
-            arduino = MedicalArduino(ser, header, self.graph.getPlotItem())
+            arduino = MedicalArduino(ser, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for i, data_label in enumerate(arduino.data_labels):
                 action = self.toolmenu.addAction(data_label)
                 action.setCheckable(True)
-                action.setShortcut(f"Ctrl+{i+1}")
+                action.setShortcut("Ctrl+{}".format(i+1))
                 action.setChecked(True)
-            self.update_legends()
+        data_dict = {action.text(): arduino.data[action.text()]
+            for arduino in self.arduinos
+            for action in self.toolmenu.actions() if action.isChecked()}
+        print(data_dict)
+        self.graph.plot(data_dict)
 
     def start_stop(self):  # called when the start/stop button is clicked
         """
@@ -236,7 +267,6 @@ class MainWindow(QtGui.QMainWindow):
 
 
 if __name__ == '__main__':
-    app = QtGui.QApplication([])
+    app = QApplication([])
     window = MainWindow()
-    window.show()
-    app.exec_()
+    sys.exit(app.exec_())

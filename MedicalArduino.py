@@ -2,7 +2,7 @@ import json
 import time
 
 class MedicalArduino:
-    def __init__(self, ser, header_dict, plot_item):
+    def __init__(self, ser, header_dict):
         """
         Interpret and store the decoded json dictionary from the handshake header file.
         Start an empty data tracking dictionary, according to data_labels.
