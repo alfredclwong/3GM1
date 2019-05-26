@@ -236,7 +236,10 @@ class MainWindow(QMainWindow):
         """
         # Close all currently open ports
         for arduino in self.arduinos:
-            arduino.ser.close()
+            if isInstance(arduino, MedicalArduino):
+                arduino.ser.close()
+            else:
+                arduino.sock.close()
         
         # Update self.dropdown (via self.toolmenu) and self.arduinos
         # TODO: submenus for each arduino and its data_labels in toolmenu
@@ -257,6 +260,7 @@ class MainWindow(QMainWindow):
                 j = ser.readline()
                 if j.endswith(b'\n'):
                     break
+            print(j)
             header = json.loads(j.decode())
             print(header)
 
@@ -307,7 +311,6 @@ class MainWindow(QMainWindow):
         data_dict = {action.text(): arduino.data[action.text()]
             for arduino in self.arduinos
             for action in self.toolmenu.actions() if action.isChecked()}
-        print(data_dict)
         self.graph.plot(data_dict)
 
     def start_stop(self):  # called when the start/stop button is clicked
@@ -341,7 +344,7 @@ class MainWindow(QMainWindow):
         for i in range(len(self.arduinos)):
             if time.time() - self.prevs[i] > 1.0 / self.arduinos[i].sampling_rate:
                 self.arduinos[i].sample()
-                self.plot
+                self.plot()
                 self.prevs[i] = time.time()
 
     def sendData(self):  # called when the send button is clicked
@@ -350,19 +353,19 @@ class MainWindow(QMainWindow):
         2. Extract data from MedicalArduino list
         """
         if not self.timer.isActive():
-            print("Sending data to Xenplate...")
+            self.display("Sending data to Xenplate...")
 
             # Read patient ID
             print("Patient ID:", self.id.text())
             patient_ID = self.id.text()
             if patient_ID == "":
-                print("Error: no patient ID input!")
+                self.display("Error: no patient ID input!")
                 return
 
             # Check for no data
             if not any(any(len(arduino.data[label]) > 0 for label in arduino.data_labels)
                        for arduino in self.arduinos):
-                print("No data to send!")
+                self.display("No data to send!")
                 return
             
             # Extract data
@@ -384,9 +387,9 @@ class MainWindow(QMainWindow):
                         values)
 
             self.graph.getPlotItem().clear()
-            print("Sent.")
+            self.display("Sent.")
         else:
-            print("Recording still ongoing - end recording before sending data")
+            self.display("Recording still ongoing - end recording before sending data")
 
 
     def showimage(self): #called when image from dropdown menu selected
