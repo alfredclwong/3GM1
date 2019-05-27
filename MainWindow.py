@@ -45,11 +45,13 @@ class PlotCanvas(FigureCanvas):
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
-    def plot(self, data_dict, arduinos):
+    def plot(self, arduinos):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
-        for label, data in data_dict.items():
-            ax.plot(data, label=label)
+        for arduino in arduinos:
+            for label, data in arduino.data:
+                if arduino.active_data[label]:
+                    ax.plot(data, label="{} [{}]".format(label, arduino.data_units[i]))
         ax.legend(loc='upper left')
         lims = [arduino.data_range[0] for arduino in arduinos]
         lims += [arduino.data_range[1] for arduino in arduinos]
@@ -124,11 +126,7 @@ class MainWindow(QMainWindow):
         self.dropdown.setText('Select recordings')
         self.dropdown.setPopupMode(QToolButton.InstantPopup)
         self.toolmenu = QMenu(self)
-        self.plot = lambda: self.graph.plot({
-            action.text(): arduino.data[action.text()]
-            for arduino in self.arduinos
-            for action in self.toolmenu.actions() if action.isChecked()},
-            self.arduinos)
+        
         self.toolmenu.triggered.connect(self.plot)
         self.dropdown.setMenu(self.toolmenu)
         self.interface_row.addWidget(self.dropdown)
@@ -171,6 +169,17 @@ class MainWindow(QMainWindow):
         layout.addLayout(self.data_row, 1, 0)
         layout.addLayout(self.visual_row, 2, 0)
         self.tab1.setLayout(layout)
+        
+    def onChecked(self):
+        """
+        """
+        for i, arduino in enumerate(self.arduinos):            
+            for action in self.toolmenu.actions():
+                suffix = " ({})".format(i)
+                if action.text().endswith(suffix):
+                    arduino.active_data[action.text().strip(suffix)] = action.isChecked()
+        
+        self.graph.plot(self.arduinos)
 
     def tab2UI(self):
         """
