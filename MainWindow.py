@@ -22,8 +22,11 @@ from APICommands import *
 #from imagelist_widget import imagelist
 
 baudrate = 9600
+blacklist = ["20:15:03:03:08:43"]
 hwids = [["1A86", "7523"]]
 bluetooth_devices = ["HC-06"]
+usb_dir = "/media/pi"
+bluetooth_port = 1
 
 class PlotCanvas(FigureCanvas):
     """
@@ -69,7 +72,8 @@ class MainWindow(QMainWindow):
         self.supportedfiles = ('.jpg','.png') #files supported by USB file detection
 
     def initUI(self):
-        
+        #self.showFullScreen()
+	
         #setup main tabs Widget
         self.tabs = QTabWidget()
         self.tab1 = QWidget()
@@ -92,7 +96,7 @@ class MainWindow(QMainWindow):
         
         # Create a central widget which will hold all subcomponents
         self.setCentralWidget(self.tabs)
-        #self.statusBar().showMessage('')
+        self.statusBar().showMessage('')
         self.show()
         
     def tab1UI(self):
@@ -270,7 +274,6 @@ class MainWindow(QMainWindow):
             for i, data_label in enumerate(arduino.data_labels):
                 action = self.toolmenu.addAction(data_label)
                 action.setCheckable(True)
-                action.setShortcut("Ctrl+{}".format(i+1))
                 action.setChecked(True)
         
         # Scan through Bluetooth connections
@@ -278,12 +281,12 @@ class MainWindow(QMainWindow):
         nearby_devices = discover_devices(lookup_names=True)
         print(nearby_devices)
         for i, (addr, name) in enumerate(nearby_devices):
-            if name not in bluetooth_devices:
+            if name not in bluetooth_devices or addr in blacklist:
                 continue
             self.display("detected bluetooth device at address {}".format(addr))
             sock = BluetoothSocket(RFCOMM)
             try:
-                sock.connect((addr, 1))  # only port 1 works? can't use find_service(address)
+                sock.connect((addr, bluetooth_port))
             except btcommon.BluetoothError as err:
                 print(err)
                 continue
@@ -303,7 +306,6 @@ class MainWindow(QMainWindow):
             for j, data_label in enumerate(arduino.data_labels):
                 action = self.toolmenu.addAction(data_label)
                 action.setCheckable(True)
-                action.setShortcut("Ctrl+{}".format(j+1))
                 action.setChecked(True)
         
         # Replot graph such that the legend updates
@@ -412,8 +414,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        #for root, dirs, files in os.walk('/media/pi'):
+        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))
