@@ -12,7 +12,7 @@ class Login(QtWidgets.QDialog):
         super(Login, self).__init__(parent)
         
         # Set up login gui
-        self.notification = QtWidgets.QLabel('Press "Scan" and then Tap your Security Card')
+        self.notification = QtWidgets.QLabel('Press "Scan" and then present your Security Card')
         self.buttonScan = QtWidgets.QPushButton('Scan', self)
         self.buttonScan.clicked.connect(self.scanAndCheck)
         layout = QtWidgets.QVBoxLayout(self)
@@ -91,7 +91,10 @@ class Login(QtWidgets.QDialog):
                 break
             else:
                 i.close()
-        return ser
+        try:
+            return ser
+        except:
+            raise Exception('Card Reader not plugged in')
 
 if __name__ == '__main__':
 
