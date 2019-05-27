@@ -236,7 +236,7 @@ class MainWindow(QMainWindow):
         """
         # Close all currently open ports
         for arduino in self.arduinos:
-            if isInstance(arduino, MedicalArduino):
+            if isinstance(arduino, MedicalArduino):
                 arduino.ser.close()
             else:
                 arduino.sock.close()
@@ -248,10 +248,9 @@ class MainWindow(QMainWindow):
         
         # Scan through USB connections: serial.tools.list_ports.comports()
         for p in serial.tools.list_ports.comports():
-            self.display("detected device at port {}".format(p.device))
             if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
-                print("hwid mismatch")
                 continue
+            self.display("detected device at port {}".format(p.device))
             ser = serial.Serial(p.device, baudrate, timeout=0)
             time.sleep(2) # temporary workaround
             ser.write(b'A')
@@ -284,7 +283,7 @@ class MainWindow(QMainWindow):
             self.display("detected bluetooth device at address {}".format(addr))
             sock = BluetoothSocket(RFCOMM)
             try:
-                sock.connect((addr, i+1))  # open bluetooth socket on port i+1 (no port 0)
+                sock.connect((addr, 1))  # only port 1 works? can't use find_service(address)
             except btcommon.BluetoothError as err:
                 print(err)
                 continue
@@ -297,7 +296,7 @@ class MainWindow(QMainWindow):
             header = json.loads(data.decode())
             print(header)
             
-            # Create a new BluetoothArduino
+            # Create a new BluetoothArduino - note: assumes device is already paired
             arduino = BluetoothArduino(sock, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click

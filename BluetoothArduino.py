@@ -36,7 +36,7 @@ class BluetoothArduino:
         self.sock.send('B')
         data = b''
         while True:
-            data += sock.recv(1024)
+            data += self.sock.recv(1024)
             if data.endswith(b'\n'):
                 break
         data = json.loads(data.decode())
