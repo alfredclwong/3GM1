@@ -53,7 +53,7 @@ class PlotCanvas(FigureCanvas):
                 if arduino.active_data[label]:
                     ax.plot(data, label="{}. {} [{}]".format(i, label, arduino.data_units[label]))
                     for x,y in zip(len(data)-1), data):
-                        ax.annotate(str(y), xy=(5,5), xytext=(0,0), textcoords='offset points')
+                        ax.annotate(str(y), xy=(5,y), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for data_range in arduino.data_ranges for arduino in arduinos]
