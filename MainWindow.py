@@ -47,12 +47,14 @@ class PlotCanvas(FigureCanvas):
     def plot(self, arduinos):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
+
         for i, arduino in enumerate(arduinos):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
                     ax.plot(data, label="{}. {} [{}]".format(i, label, arduino.data_units[label]))
-                    for x,y in zip(range(len(data)), data):
-                        ax.annotate(str(y), xy=(x,y), xytext=(1,1), textcoords='offset points')
+                    for x,y in zip(len(data)-1), data):
+                        ax.annotate(str(y), xy=(5,5), xytext=(0,0), textcoords='offset points')
+
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for data_range in arduino.data_ranges for arduino in arduinos]
         lims += [data_range[:][1] for data_range in arduino.data_ranges for arduino in arduinos]
