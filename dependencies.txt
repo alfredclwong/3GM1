@@ -1,0 +1,7 @@
+RPi setup instructions (from vanilla)
+
+0.  sudo apt-get update
+1.  sudo apt-get install qt5-default pyqt5-dev pyqt5-dev-tools
+    https://www.riverbankcomputing.com/static/Docs/PyQt5/installation.html
+    (Building and Installing from Source - NOTE: use python3!!)
+2.  

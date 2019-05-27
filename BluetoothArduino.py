@@ -19,6 +19,7 @@ class BluetoothArduino(MedicalArduino):
         Return the entire history of all recorded data (regardless of whether or not a
         null value was read or if the data series are not 'checked' in the GUI).
         """
+        print("sampling bluetooth arduino")
         self.sock.send('B')
         data = b''
         while True:

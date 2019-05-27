@@ -19,6 +19,7 @@ class USBArduino(MedicalArduino):
         Return the entire history of all recorded data (regardless of whether or not a
         null value was read or if the data series are not 'checked' in the GUI).
         """
+        print("sampling USB arduino")
         self.ser.write(b'B')
         time.sleep(0.1)
         self.ser.flush()
@@ -31,7 +32,7 @@ class USBArduino(MedicalArduino):
             for label in self.data_labels:
                 self.data[label].append(data[label])
             #self.data["time"].append(time.time() - self.start)
-        #print(data)
+        print(data)
         #print(self.data)
         #return self.data
 
