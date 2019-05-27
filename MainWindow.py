@@ -56,7 +56,8 @@ class PlotCanvas(FigureCanvas):
         lims += [data_range[1] for data_range in arduino.data_ranges for arduino in arduinos]
         print(min(lims), max(lims))
         ax.set_ylim(min(lims), max(lims))
-
+        for i,j in zip(x,y):
+            ax.annotate(str(j), xy=(i,j), xytext=(1,1), textcoords='offset points')
 
         self.draw()
 
