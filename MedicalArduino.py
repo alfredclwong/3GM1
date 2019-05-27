@@ -12,7 +12,7 @@ class MedicalArduino(ABC):
         self.name           = header_dict["name"]
         self.data_labels    = header_dict["labels"]
         #self.data_types     = header_dict["data_types"]
-        self.data_units     = header_dict["data_units"]
+        self.data_units     = {label: header_dict["data_units"][i] for i, label in enumerate(self.data_labels)}
         self.data_ranges    = header_dict["data_range"]
         self.sampling_rate  = header_dict["sampling_rate"]
         self.active_data    = {label: True for label in self.data_labels}

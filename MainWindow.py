@@ -48,12 +48,13 @@ class PlotCanvas(FigureCanvas):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
         for arduino in arduinos:
-            for label, data in arduino.data:
+            for label, data in arduino.data.items():
                 if arduino.active_data[label]:
-                    ax.plot(data, label="{} [{}]".format(label, arduino.data_units[i]))
+                    ax.plot(data, label="{} [{}]".format(label, arduino.data_units[label]))
         ax.legend(loc='upper left')
-        lims = [arduino.data_range[0] for arduino in arduinos]
-        lims += [arduino.data_range[1] for arduino in arduinos]
+        lims = [data_range[0] for data_range in arduino.data_ranges for arduino in arduinos]
+        lims += [data_range[1] for data_range in arduino.data_ranges for arduino in arduinos]
+        print(min(lims), max(lims))
         ax.set_ylim(min(lims), max(lims))
 
 
@@ -125,11 +126,7 @@ class MainWindow(QMainWindow):
         self.dropdown.setText('Select recordings')
         self.dropdown.setPopupMode(QToolButton.InstantPopup)
         self.toolmenu = QMenu(self)
-        self.plot = lambda: self.graph.plot({
-            action.text(): arduino.data[action.text()]
-            for i, arduino in enumerate(self.arduinos)
-            for action in self.toolmenu.actions() if action.isChecked()})
-        self.toolmenu.triggered.connect(self.plot)
+        self.toolmenu.triggered.connect(self.onChecked)
         self.dropdown.setMenu(self.toolmenu)
         self.interface_row.addWidget(self.dropdown)
         
@@ -175,7 +172,7 @@ class MainWindow(QMainWindow):
     def onChecked(self):
         """
         """
-        for i, arduino in enumerate(self.arduinos):            
+        for i, arduino in enumerate(self.arduinos):
             for action in self.toolmenu.actions():
                 suffix = " ({})".format(i)
                 if action.text().endswith(suffix):
@@ -289,7 +286,7 @@ class MainWindow(QMainWindow):
                 action = self.toolmenu.addAction(data_label)
                 action.setCheckable(True)
                 action.setChecked(True)
-        self.plot()
+        self.graph.plot(self.arduinos)
         
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
@@ -357,7 +354,7 @@ class MainWindow(QMainWindow):
         for i in range(len(self.arduinos)):
             if time.time() - self.prevs[i] > 1.0 / self.arduinos[i].sampling_rate:
                 self.arduinos[i].sample()
-                self.plot
+                self.graph.plot(self.arduinos)
                 self.prevs[i] = time.time()
 
     def sendData(self):  # called when the send button is clicked
