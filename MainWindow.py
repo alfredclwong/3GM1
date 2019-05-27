@@ -16,10 +16,9 @@ import serial.tools.list_ports
 import json
 import time
 
-from MedicalArduino import MedicalArduino
+from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-#from imagelist_widget import imagelist
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -121,7 +120,7 @@ class MainWindow(QMainWindow):
         self.toolmenu = QMenu(self)
         self.plot = lambda: self.graph.plot({
             action.text(): arduino.data[action.text()]
-            for arduino in self.arduinos
+            for i, arduino in enumerate(self.arduinos)
             for action in self.toolmenu.actions() if action.isChecked()})
         self.toolmenu.triggered.connect(self.plot)
         self.dropdown.setMenu(self.toolmenu)
@@ -162,8 +161,8 @@ class MainWindow(QMainWindow):
         # Add all 3 rows to self.layout and set tab2 layout
         layout = QGridLayout()
         layout.addLayout(self.interface_row, 0, 0)
-        layout.addLayout(self.data_row, 1, 0)
-        layout.addLayout(self.visual_row, 2, 0)
+        layout.addLayout(self.data_row, 2, 0)
+        layout.addLayout(self.visual_row, 1, 0)
         self.tab1.setLayout(layout)
 
     def tab2UI(self):
@@ -189,7 +188,7 @@ class MainWindow(QMainWindow):
         detect=QPushButton("Detect")
         detect.setMinimumHeight(50)
         detect.clicked.connect(self.detectUSB)
-        top.addWidget(detect)       
+        top.addWidget(detect)
         
         #DEFINE DATA ROW
         mid = QHBoxLayout()
@@ -217,8 +216,8 @@ class MainWindow(QMainWindow):
         ###define grid and layout###
         layout = QGridLayout()
         layout.addLayout(top,0,0)
-        layout.addLayout(mid,1,0)
-        layout.addLayout(bottom,2,0, QtCore.Qt.AlignCenter)
+        layout.addLayout(mid,2,0)
+        layout.addLayout(bottom,1,0, QtCore.Qt.AlignCenter)
         self.tab2.setLayout(layout)
 
 
@@ -240,10 +239,7 @@ class MainWindow(QMainWindow):
         """
         # Close all currently open ports
         for arduino in self.arduinos:
-            if isinstance(arduino, MedicalArduino):
-                arduino.ser.close()
-            else:
-                arduino.sock.close()
+            arduino.close()
         
         # Update self.dropdown (via self.toolmenu) and self.arduinos
         # TODO: submenus for each arduino and its data_labels in toolmenu
@@ -267,14 +263,15 @@ class MainWindow(QMainWindow):
             header = json.loads(j.decode())
             print(header)
 
-            # Create a new MedicalArduino using this information
-            arduino = MedicalArduino(ser, header)
+            # Create a new USBArduino using this information
+            arduino = USBArduino(ser, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for i, data_label in enumerate(arduino.data_labels):
                 action = self.toolmenu.addAction(data_label)
                 action.setCheckable(True)
                 action.setChecked(True)
+        self.plot()
         
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
@@ -309,10 +306,11 @@ class MainWindow(QMainWindow):
                 action.setChecked(True)
         
         # Replot graph such that the legend updates
-        data_dict = {action.text(): arduino.data[action.text()]
-            for arduino in self.arduinos
-            for action in self.toolmenu.actions() if action.isChecked()}
-        self.graph.plot(data_dict)
+        #data_dict = {action.text(): arduino.data[action.text()]
+        #    for arduino in self.arduinos
+        #    for action in self.toolmenu.actions() if action.isChecked()}
+        #self.graph.plot(data_dict)
+        self.plot()
 
     def start_stop(self):  # called when the start/stop button is clicked
         """
@@ -364,7 +362,7 @@ class MainWindow(QMainWindow):
                 return
 
             # Check for no data
-            if not any(any(len(arduino.data[label]) > 0 for label in arduino.data_labels)
+            if not any(any(len(medicaldata) > 0 for medicaldata in arduino.data)
                        for arduino in self.arduinos):
                 self.display("No data to send!")
                 return
