@@ -44,12 +44,19 @@ class PlotCanvas(FigureCanvas):
                 QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
-    def plot(self, data_dict):
+    def plot(self, arduinos):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
-        for label, data in data_dict.items():
-            ax.plot(data, label=label)
+        for arduino in arduinos:
+            for label, data in arduino.data:
+                if arduino.active_data[label]:
+                    ax.plot(data, label="{} [{}]".format(label, arduino.data_units[i]))
         ax.legend(loc='upper left')
+        lims = [arduino.data_range[0] for arduino in arduinos]
+        lims += [arduino.data_range[1] for arduino in arduinos]
+        ax.set_ylim(min(lims), max(lims))
+
+
         self.draw()
 
 class MainWindow(QMainWindow):
@@ -164,6 +171,17 @@ class MainWindow(QMainWindow):
         layout.addLayout(self.data_row, 2, 0)
         layout.addLayout(self.visual_row, 1, 0)
         self.tab1.setLayout(layout)
+        
+    def onChecked(self):
+        """
+        """
+        for i, arduino in enumerate(self.arduinos):            
+            for action in self.toolmenu.actions():
+                suffix = " ({})".format(i)
+                if action.text().endswith(suffix):
+                    arduino.active_data[action.text().strip(suffix)] = action.isChecked()
+        
+        self.graph.plot(self.arduinos)
 
     def tab2UI(self):
         """
@@ -240,7 +258,7 @@ class MainWindow(QMainWindow):
         # Close all currently open ports
         for arduino in self.arduinos:
             arduino.close()
-        
+
         # Update self.dropdown (via self.toolmenu) and self.arduinos
         # TODO: submenus for each arduino and its data_labels in toolmenu
         self.toolmenu.clear()
@@ -248,9 +266,10 @@ class MainWindow(QMainWindow):
         
         # Scan through USB connections: serial.tools.list_ports.comports()
         for p in serial.tools.list_ports.comports():
-            if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
-                continue
             self.display("detected device at port {}".format(p.device))
+            if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
+                print("hwid mismatch")
+                continue
             ser = serial.Serial(p.device, baudrate, timeout=0)
             time.sleep(2) # temporary workaround
             ser.write(b'A')
@@ -259,7 +278,6 @@ class MainWindow(QMainWindow):
                 j = ser.readline()
                 if j.endswith(b'\n'):
                     break
-            print(j)
             header = json.loads(j.decode())
             print(header)
 
@@ -296,7 +314,7 @@ class MainWindow(QMainWindow):
             header = json.loads(data.decode())
             print(header)
             
-            # Create a new BluetoothArduino - note: assumes device is already paired
+            # Create a new BluetoothArduino
             arduino = BluetoothArduino(sock, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
@@ -306,11 +324,7 @@ class MainWindow(QMainWindow):
                 action.setChecked(True)
         
         # Replot graph such that the legend updates
-        #data_dict = {action.text(): arduino.data[action.text()]
-        #    for arduino in self.arduinos
-        #    for action in self.toolmenu.actions() if action.isChecked()}
-        #self.graph.plot(data_dict)
-        self.plot()
+        self.graph.plot(self.arduinos)
 
     def start_stop(self):  # called when the start/stop button is clicked
         """
@@ -343,7 +357,7 @@ class MainWindow(QMainWindow):
         for i in range(len(self.arduinos)):
             if time.time() - self.prevs[i] > 1.0 / self.arduinos[i].sampling_rate:
                 self.arduinos[i].sample()
-                self.plot()
+                self.plot
                 self.prevs[i] = time.time()
 
     def sendData(self):  # called when the send button is clicked
@@ -352,19 +366,19 @@ class MainWindow(QMainWindow):
         2. Extract data from MedicalArduino list
         """
         if not self.timer.isActive():
-            self.display("Sending data to Xenplate...")
+            print("Sending data to Xenplate...")
 
             # Read patient ID
             print("Patient ID:", self.id.text())
             patient_ID = self.id.text()
             if patient_ID == "":
-                self.display("Error: no patient ID input!")
+                print("Error: no patient ID input!")
                 return
 
             # Check for no data
             if not any(any(len(medicaldata) > 0 for medicaldata in arduino.data)
                        for arduino in self.arduinos):
-                self.display("No data to send!")
+                print("No data to send!")
                 return
             
             # Extract data
@@ -386,9 +400,9 @@ class MainWindow(QMainWindow):
                         values)
 
             self.graph.getPlotItem().clear()
-            self.display("Sent.")
+            print("Sent.")
         else:
-            self.display("Recording still ongoing - end recording before sending data")
+            print("Recording still ongoing - end recording before sending data")
 
 
     def showimage(self): #called when image from dropdown menu selected
