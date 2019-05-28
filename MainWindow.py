@@ -52,9 +52,9 @@ class PlotCanvas(FigureCanvas):
         for i, arduino in enumerate(arduinos):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
-                    ax.plot(data, label="{}. {} [{}]".format(i, label, arduino.data_units[label]))
-                    for x,y in zip((len(data)-1), data):
-                        ax.annotate(str(y), xy=(5,y), xytext=(0,0), textcoords='offset points')
+                    ax.plot(data, label="{}. {} [{}]".format(i+1, label, arduino.data_units[label]))
+                    if len(data) == 0: continue
+                    ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for data_range in arduino.data_ranges for arduino in arduinos]
@@ -107,7 +107,11 @@ class NumberPadPopup(QWidget):
         self.setLayout(layout)
 
 class MainWindow(QMainWindow):
+    
     def __init__(self, parent=None):
+        """
+        Constructor for the QMainWindow, also containing constants and variables used throughout the class.
+        """
         super(MainWindow, self).__init__(parent)
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
@@ -139,7 +143,12 @@ class MainWindow(QMainWindow):
         self.w.show()
 
     def initUI(self):
-        #self.showFullScreen()
+        """
+        Sets up Main Window GUI split into 2 sections;
+        1. Top row containing common functions to all tabs
+        2. Main body containing the tabs widget
+        
+        """
         
         #INTERFACE BUTTONS
         self.interface_row = QHBoxLayout()
@@ -204,12 +213,9 @@ class MainWindow(QMainWindow):
         
     def tab1UI(self):
         """
-        The GUI design is split into three rows, organised as follows:
-        Interface row.  Used for controlling the Arduino-Pi interfaces - detecting/refreshing
-                        connections and selecting which recordings to visualise/send.
-        Visual row.     Contains a graph capable of plotting data from multiple recordings.
-                        In the future could auto-toggle/format to visualise other data types.
-        Data row.       Used for creating (>/=), tagging (ID) and sending (Send) data.
+        Tab1 is split into 2 rows.
+        The top row contains: dropdown menu for selecting device, start/stop recording button
+        The bottom row contains a matplotlib graph widget for plotting device outputs
         """
         # INTERFACE ROW
         top_row1 = QHBoxLayout()
@@ -248,15 +254,17 @@ class MainWindow(QMainWindow):
         """
         for i, arduino in enumerate(self.arduinos):
             for action in self.toolmenu.actions():
-                suffix = " ({})".format(i)
-                if action.text().endswith(suffix):
-                    arduino.active_data[action.text().strip(suffix)] = action.isChecked()
+                prefix = "{}. ".format(i+1)
+                if action.text().startswith(prefix):
+                    arduino.active_data[action.text().strip(prefix)] = action.isChecked()
         
         self.graph.plot(self.arduinos)
 
     def tab2UI(self):
         """
         Tab split into 2 rows
+        1. Top row contains dropdown menu for selecting file upload
+        2. Second row contains space for QPixmap image
         """
         
         #INTERFACE ROW
@@ -287,6 +295,7 @@ class MainWindow(QMainWindow):
         
     def tab3UI(self):
         """
+        Holds custom camera_widget.
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
@@ -295,34 +304,20 @@ class MainWindow(QMainWindow):
         self.tab3.setLayout(self.layout3)
         
         
-    
     def display(self, msg):
-        print(type(self))
-        print(self)
+        """
+        Adds status bar to display messages to GUI
+        """
         print(msg)
         self.statusBar().showMessage(str(msg))
         
-        
-    def detect_ports(self):
+    def detectUSBArduinos(self):
         """
-        Within detect_ports():
+        Within detectUSBArduinos():
         1. detect_ports connection
         2. Send header request ('A')
-        3. Create MedicalArduino() using header
-        
-        Outside detect_ports():
-        4. Send data requests according to sample rate
-        5. Update GUI?
+        3. Create USBArduino() using header
         """
-        # Close all currently open ports
-        for arduino in self.arduinos:
-            arduino.close()
-
-        # Update self.dropdown (via self.toolmenu) and self.arduinos
-        # TODO: submenus for each arduino and its data_labels in toolmenu
-        self.toolmenu.clear()
-        self.arduinos = []
-        
         # Scan through USB connections: serial.tools.list_ports.comports()
         for p in serial.tools.list_ports.comports():
             self.display("detected device at port {}".format(p.device))
@@ -345,11 +340,12 @@ class MainWindow(QMainWindow):
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for i, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction(data_label)
+                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
                 action.setCheckable(True)
                 action.setChecked(True)
         self.graph.plot(self.arduinos)
-        
+    
+    def detectBluetoothArduinos(self):
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
         nearby_devices = discover_devices(lookup_names=True)
@@ -378,13 +374,28 @@ class MainWindow(QMainWindow):
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for j, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction(data_label)
+                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
                 action.setCheckable(True)
                 action.setChecked(True)
         
         # Replot graph such that the legend updates
         self.graph.plot(self.arduinos)
 
+    
+    def detect_ports(self):
+        # Close all currently open ports
+        for arduino in self.arduinos:
+            arduino.close()
+
+        # Update self.dropdown (via self.toolmenu) and self.arduinos
+        # TODO: submenus for each arduino and its data_labels in toolmenu
+        self.toolmenu.clear()
+        self.arduinos = []
+        
+        self.detectUSBArduinos()
+        #self.detectBluetoothArduinos()
+        
+        
     def start_stop(self):  # called when the start/stop button is clicked
         """
         Set up graph according to selected arduinos and start timer
@@ -440,6 +451,7 @@ class MainWindow(QMainWindow):
                 return
             
             # Extract data
+            # TODO data label repeat checking
             data = {}
             for arduino in self.arduinos:
                 for label in arduino.data_labels:
@@ -470,9 +482,9 @@ class MainWindow(QMainWindow):
         """
         action=self.sender()
         path = action.text()
+        self.display(path + ' selected')
         if path.endswith('pdf'):
             path='pdf_logo.jpg'
-        self.display(path + ' selected')
         self.pixmap = QtGui.QPixmap(path)
         self.pixmap = self.pixmap.scaled(230, 500, QtCore.Qt.KeepAspectRatio)
         self.image.setPixmap(self.pixmap)
@@ -486,8 +498,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        #for root, dirs, files in os.walk(usb_dir):
+        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))
@@ -505,10 +517,19 @@ class MainWindow(QMainWindow):
         
         
     def keyPressEvent(self, e):
+        """
+        Closes window by pressing -esc key
+        """
         if e.key() == QtCore.Qt.Key_Escape:
             self.close()
             
     def detectswitch(self):
+        """
+        Switches function of "Detect" button depending on current tab open
+        tab1: detects Arduino devices
+        tab2: detects USB flash drives
+        tab3: sets up webcam
+        """
         current_tab = self.tabs.currentIndex() + 1 #add 1 to be consistent with tab numbers
         if current_tab == 1:
             self.detect_ports()
