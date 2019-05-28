@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import* #(QApplication, QMainWindow, QWidget, QDesktopWidge
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-#from bluetooth import *
+from bluetooth import *
 import os
 import sys
 import random
@@ -15,11 +15,12 @@ import serial
 import serial.tools.list_ports
 import json
 import time
+import threading
 
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-#from camera_widget import camWidget, Camera
+from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -57,8 +58,8 @@ class PlotCanvas(FigureCanvas):
                     ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
-        lims = [data_range[:][0] for data_range in arduino.data_ranges for arduino in arduinos]
-        lims += [data_range[:][1] for data_range in arduino.data_ranges for arduino in arduinos]
+        lims = [data_range[:][0] for arduino in arduinos for data_range in arduino.data_ranges]
+        lims += [data_range[:][1] for arduino in arduinos for data_range in arduino.data_ranges]
         ax.set_ylim(min(lims), max(lims))
         self.draw()
 
@@ -113,6 +114,7 @@ class MainWindow(QMainWindow):
         Constructor for the QMainWindow, also containing constants and variables used throughout the class.
         """
         super(MainWindow, self).__init__(parent)
+        self.showFullScreen()
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
         self.arduinos = []
@@ -299,8 +301,8 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        #self.webcam = camWidget()
-        #self.layout3.addWidget(self.webcam)
+        self.webcam = camWidget()
+        self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
@@ -324,7 +326,7 @@ class MainWindow(QMainWindow):
             if not any(all(id in p.hwid for id in hwid) for hwid in hwids):
                 print("hwid mismatch")
                 continue
-            ser = serial.Serial(p.device, baudrate, timeout=0)
+            ser = serial.Serial(p.device, baudrate, timeout=10)
             time.sleep(2) # temporary workaround
             ser.write(b'A')
             time.sleep(0.5) # temporary workaround
@@ -355,6 +357,7 @@ class MainWindow(QMainWindow):
                 continue
             self.display("detected bluetooth device at address {}".format(addr))
             sock = BluetoothSocket(RFCOMM)
+            #sock.settimeout(10)
             try:
                 sock.connect((addr, bluetooth_port))
             except btcommon.BluetoothError as err:
@@ -392,9 +395,12 @@ class MainWindow(QMainWindow):
         self.toolmenu.clear()
         self.arduinos = []
         
-        self.detectUSBArduinos()
-        #self.detectBluetoothArduinos()
-        
+        usb_thread = threading.Thread(target=self.detectUSBArduinos)
+        usb_thread.start()
+        #bluetooth_thread = threading.Thread(target=self.detectBluetoothArduinos)
+        #bluetooth_thread.start()
+        usb_thread.join()
+        #bluetooth_thread.join()
         
     def start_stop(self):  # called when the start/stop button is clicked
         """
@@ -439,7 +445,7 @@ class MainWindow(QMainWindow):
             print("Sending data to Xenplate...")
 
             # Read patient ID
-            print("Patient ID:", self.patient_ID())
+            print("Patient ID:", self.patient_ID)
             if self.patient_ID == "":
                 print("Error: no patient ID input!")
                 return
@@ -469,7 +475,7 @@ class MainWindow(QMainWindow):
                         template_read_active_full(arduino.name),
                         values)
 
-            self.graph.getPlotItem().clear()
+            #self.graph.getPlotItem().clear()
             print("Sent.")
         else:
             print("Recording still ongoing - end recording before sending data")
