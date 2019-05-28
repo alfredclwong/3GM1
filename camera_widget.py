@@ -1,5 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import QLabel, QMainWindow, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
 #from models import Camera
 import pyqtgraph
 from pyqtgraph import ImageItem, ImageView
@@ -24,12 +25,6 @@ class Camera:
         ret, self.last_frame = self.cap.read()
         return self.last_frame
 
-    def acquire_movie(self, num_frames):
-        movie = []
-        for _ in range(num_frames):
-            movie.append(self.get_frame())
-        return movie
-
     def set_brightness(self, value):
         self.cap.set(cv2.CAP_PROP_BRIGHTNESS, value)
 
@@ -52,10 +47,14 @@ class camWidget(QWidget):
         
         
     def initUI(self):  
+        """
+        Sets up camera and Capture button objects and puts them in layout
+        Also sets up timer
+        """
         
         self.setGeometry(300, 300, 600, 300)
         
-        self.camera = Camera(1)
+        self.camera = Camera(0)
         self.framerate = 30
         self.captured_frame = None 
         
@@ -63,21 +62,10 @@ class camWidget(QWidget):
         self.central_widget = QWidget()
         self.layout = QHBoxLayout(self)
         
-        #define image view widget
-        self.image_view = ImageView()
-        self.image_view.ui.histogram.hide()
-        self.image_view.ui.roiBtn.hide()
-        self.image_view.ui.menuBtn.hide()
-        self.layout.addWidget(self.image_view)
-        
+        self.label = QLabel(self)
+        self.layout.addWidget(self.label)
         self.buttonlayout = QVBoxLayout()
-        
-        #define start feed button
-        #self.startfeed = QPushButton('Start Feed', self.central_widget)
-        #self.startfeed.clicked.connect(self.start_feed)
-        #self.startfeed.setMinimumHeight(50)
-        #self.startfeed.setMaximumWidth(100)
-        #self.buttonlayout.addWidget(self.startfeed) 
+
         
         #define data capture button
         self.capturebutton = QPushButton('Capture', self.central_widget)
@@ -129,7 +117,15 @@ class camWidget(QWidget):
         Called by QTimer at regular timeout signals
         """
         frame = self.camera.get_frame()
-        self.image_view.setImage(frame.T)
+        #self.image_view.setImage(frame.T)
+        rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        convertToQtFormat = QtGui.QImage(rgbImage.data, rgbImage.shape[1], rgbImage.shape[0],
+                                         QtGui.QImage.Format_RGB888)
+        convertToQtFormat = QtGui.QPixmap.fromImage(convertToQtFormat)
+        pixmap = QtGui.QPixmap(convertToQtFormat)
+        resizeImage = pixmap.scaled(400, 300, QtCore.Qt.KeepAspectRatio)
+        QApplication.processEvents()
+        self.label.setPixmap(resizeImage)
         
 
 if __name__ == '__main__':
