@@ -53,7 +53,7 @@ class PlotCanvas(FigureCanvas):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
                     ax.plot(data, label="{}. {} [{}]".format(i, label, arduino.data_units[label]))
-                    for x,y in zip(len(data)-1), data):
+                    for x,y in zip((len(data)-1), data):
                         ax.annotate(str(y), xy=(5,y), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         self.width = 640
         self.height = 480
         self.initUI()
-        self.supportedfiles = ('.jpg','.png') #files supported by USB file detection
+        self.supportedfiles = ('.jpg','.png','pdf') #files supported by USB file detection
 
     def initUI(self):
         #self.showFullScreen()
@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
         self.imagedrop=QToolButton()
         self.imagedrop.setMinimumHeight(50)
         self.imagedrop.setSizePolicy(dropdownSizePolicy)
-        self.imagedrop.setText('Select image')
+        self.imagedrop.setText('Select File')
         self.imagedrop.setMenu(self.imagemenu)
         self.imagedrop.setPopupMode(QToolButton.InstantPopup)
         top_row2.addWidget(self.imagedrop)
@@ -222,7 +222,14 @@ class MainWindow(QMainWindow):
         self.tab2.setLayout(self.layout2)
         
     def tab3UI(self):
-        pass
+        """
+        """
+        self.layout3 = QVBoxLayout()
+        #initialise custom webcam widget
+        self.webcam = camWidget()
+        self.layout3.addWidget(self.webcam)
+        self.tab3.setLayout(self.layout3)
+        
         
     
     def display(self, msg):
@@ -398,9 +405,11 @@ class MainWindow(QMainWindow):
         """
         action=self.sender()
         path = action.text()
+        if path.endswith('pdf'):
+            path='pdf_logo.jpg'
         self.display(path + ' selected')
         self.pixmap = QtGui.QPixmap(path)
-        self.pixmap = self.pixmap.scaled(300, 300, QtCore.Qt.KeepAspectRatio)
+        self.pixmap = self.pixmap.scaled(230, 500, QtCore.Qt.KeepAspectRatio)
         self.image.setPixmap(self.pixmap)
         
         
@@ -412,8 +421,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        for root, dirs, files in os.walk(usb_dir):
+        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        #for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))
@@ -424,7 +433,7 @@ class MainWindow(QMainWindow):
                 action.setCheckable(True)
                 action.setChecked(False)
                 group.addAction(action)
-            self.display('Image found')
+            self.display('Files found')
             group.setExclusive(True)
         elif not self.imagelist:
             self.display('No images found, please insert USB storage device')
@@ -442,6 +451,8 @@ class MainWindow(QMainWindow):
             self.detectUSB()
         elif current_tab == 3:
             self.display('Detecting Webcam...')
+            self.webcam.setup()
+            
             
         
 if __name__ == '__main__':
