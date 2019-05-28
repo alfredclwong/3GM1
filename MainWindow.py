@@ -53,9 +53,9 @@ class PlotCanvas(FigureCanvas):
         for i, arduino in enumerate(arduinos):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
-                    ax.plot(data, label="{}. {} [{}]".format(i+1, label, arduino.data_units[label]))
-                    if len(data) == 0: continue
-                    ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
+                    ax.plot(data, label="{}. {} [{}] {}".format(i+1, label, arduino.data_units[label], data[-1]))
+                    """if len(data) == 0: continue
+                    ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')"""
 
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for arduino in arduinos for data_range in arduino.data_ranges]
