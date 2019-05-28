@@ -68,7 +68,6 @@ class MainWindow(QMainWindow):
         """
         Constructor for the QMainWindow, also containing constants and variables used throughout the class.
         """
-        
         super(MainWindow, self).__init__(parent)
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
@@ -417,9 +416,9 @@ class MainWindow(QMainWindow):
         """
         action=self.sender()
         path = action.text()
+        self.display(path + ' selected')
         if path.endswith('pdf'):
             path='pdf_logo.jpg'
-        self.display(path + ' selected')
         self.pixmap = QtGui.QPixmap(path)
         self.pixmap = self.pixmap.scaled(230, 500, QtCore.Qt.KeepAspectRatio)
         self.image.setPixmap(self.pixmap)
