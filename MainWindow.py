@@ -19,7 +19,7 @@ import time
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-from camera_widget import camWidget, Camera
+#from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -52,9 +52,9 @@ class PlotCanvas(FigureCanvas):
         for i, arduino in enumerate(arduinos):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
-                    ax.plot(data, label="{}. {} [{}]".format(i, label, arduino.data_units[label]))
-                    for x,y in zip((len(data)-1), data):
-                        ax.annotate(str(y), xy=(5,y), xytext=(0,0), textcoords='offset points')
+                    ax.plot(data, label="{}. {} [{}]".format(i+1, label, arduino.data_units[label]))
+                    if len(data) == 0: continue
+                    ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for data_range in arduino.data_ranges for arduino in arduinos]
@@ -184,9 +184,9 @@ class MainWindow(QMainWindow):
         """
         for i, arduino in enumerate(self.arduinos):
             for action in self.toolmenu.actions():
-                suffix = " ({})".format(i)
-                if action.text().endswith(suffix):
-                    arduino.active_data[action.text().strip(suffix)] = action.isChecked()
+                prefix = "{}. ".format(i+1)
+                if action.text().startswith(prefix):
+                    arduino.active_data[action.text().strip(prefix)] = action.isChecked()
         
         self.graph.plot(self.arduinos)
 
@@ -226,8 +226,8 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        self.webcam = camWidget()
-        self.layout3.addWidget(self.webcam)
+        #self.webcam = camWidget()
+        #self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
@@ -279,10 +279,11 @@ class MainWindow(QMainWindow):
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for i, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction(data_label)
+                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
                 action.setCheckable(True)
                 action.setChecked(True)
         self.graph.plot(self.arduinos)
+        return
         
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
@@ -312,7 +313,7 @@ class MainWindow(QMainWindow):
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
             for j, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction(data_label)
+                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
                 action.setCheckable(True)
                 action.setChecked(True)
         
@@ -421,8 +422,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        #for root, dirs, files in os.walk(usb_dir):
+        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))
