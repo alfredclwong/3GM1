@@ -19,6 +19,7 @@ import time
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
+from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -70,10 +71,11 @@ class MainWindow(QMainWindow):
         self.timer = QtCore.QTimer()
         self.prevs = []
         
-        # UI stuff
-        self.title = "title"
+        # UI Titles and size constants
+        self.title = "Data Aqcuisition"
         self.tabname1 = "Devices"
-        self.tabname2 = "USB Files"
+        self.tabname2 = "File Upload"
+        self.tabname3 = "Camera"
         self.width = 640
         self.height = 480
         self.initUI()
@@ -81,16 +83,40 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
         #self.showFullScreen()
-	
-        #setup main tabs Widget
+        
+        #INTERFACE BUTTONS
+        self.interface_row = QHBoxLayout()
+        
+        # Patient ID form -single patient ID form to avoid overwriting problem
+        self.id = QLineEdit()
+        self.input_form = QFormLayout()
+        self.input_form.addRow("Patient ID:", self.id)
+        self.interface_row.addLayout(self.input_form)
+        
+        # Detect button -single detect button to act as switch based on current tab
+        self.detect = QPushButton("Detect",self)
+        self.detect.setMinimumHeight(50)
+        self.detect.clicked.connect(self.detectswitch)
+        self.interface_row.addWidget(self.detect)
+
+        # Send button - single send button to act as switch based on current tab
+        self.send = QPushButton("Send")
+        self.send.setMinimumHeight(50)
+        self.send.clicked.connect(self.sendData)
+        self.interface_row.addWidget(self.send)
+        
+        #TABS WIDGET
         self.tabs = QTabWidget()
         self.tab1 = QWidget()
         self.tab2 = QWidget()
+        self.tab3 = QWidget()
         self.tabs.resize(self.width, self.height)
         self.tabs.addTab(self.tab1, self.tabname1)
         self.tabs.addTab(self.tab2, self.tabname2)
+        self.tabs.addTab(self.tab3, self.tabname3)
         self.tab1UI()
         self.tab2UI()
+        self.tab3UI()
         
         #Set window title
         self.setWindowTitle(self.title)
@@ -103,8 +129,13 @@ class MainWindow(QMainWindow):
         self.move(qtRectangle.topLeft())
         
         # Create a central widget which will hold all subcomponents
-        self.setCentralWidget(self.tabs)
-        self.statusBar().showMessage('')
+        layout = QGridLayout()
+        layout.addLayout(self.interface_row,0,0)
+        layout.addWidget(self.tabs,1,0)
+        self.central=QWidget()
+        self.central.setLayout(layout)
+        self.setCentralWidget(self.central)
+        self.statusBar()
         self.show()
         
     def tab1UI(self):
@@ -117,7 +148,7 @@ class MainWindow(QMainWindow):
         Data row.       Used for creating (>/=), tagging (ID) and sending (Send) data.
         """
         # INTERFACE ROW
-        self.interface_row = QHBoxLayout()
+        top_row1 = QHBoxLayout()
         
         # Checkable dropdown menu for recording selection
         self.dropdown = QToolButton(self)
@@ -129,46 +160,24 @@ class MainWindow(QMainWindow):
         self.toolmenu = QMenu(self)
         self.toolmenu.triggered.connect(self.onChecked)
         self.dropdown.setMenu(self.toolmenu)
-        self.interface_row.addWidget(self.dropdown)
-        
-        # Detect button
-        self.detect = QPushButton("Detect")
-        self.detect.setMinimumHeight(50)
-        self.detect.clicked.connect(self.detect_ports)
-        self.interface_row.addWidget(self.detect)
-
-        # VISUAL ROW
-        self.visual_row = QHBoxLayout()
-        self.graph = PlotCanvas(self)
-        self.visual_row.addWidget(self.graph)
-
-        # DATA ROW
-        self.data_row = QHBoxLayout()
-        
-        # Form layout is a nice way to contain multiple text input fields
-        self.input_form = QFormLayout()
-        self.id = QLineEdit()
-        self.input_form.addRow("Patient ID:", self.id)
-        self.data_row.addLayout(self.input_form)
+        top_row1.addWidget(self.dropdown)
         
         # Start stop button
         self.startstop = QPushButton("Start/Stop Recording")
         self.startstop.setMinimumHeight(50)
         self.startstop.clicked.connect(self.start_stop)
-        self.data_row.addWidget(self.startstop)
+        top_row1.addWidget(self.startstop)
 
-        # Send button
-        self.send = QPushButton("Send")
-        self.send.setMinimumHeight(50)
-        self.send.clicked.connect(self.sendData)
-        self.data_row.addWidget(self.send)
+        # VISUAL ROW (PLOTTING WIDGET)
+        visual_row1 = QHBoxLayout()
+        self.graph = PlotCanvas(self)
+        visual_row1.addWidget(self.graph)
 
-        # Add all 3 rows to self.layout and set tab2 layout
-        layout = QGridLayout()
-        layout.addLayout(self.interface_row, 0, 0)
-        layout.addLayout(self.data_row, 2, 0)
-        layout.addLayout(self.visual_row, 1, 0)
-        self.tab1.setLayout(layout)
+        #DEFINE GRID LAYOUT AND ADD INTERFACE/VISUAL ROWS
+        self.layout = QGridLayout()
+        self.layout.addLayout(top_row1, 0, 0)
+        self.layout.addLayout(visual_row1, 1, 0)
+        self.tab1.setLayout(self.layout)
         
     def onChecked(self):
         """
@@ -183,65 +192,44 @@ class MainWindow(QMainWindow):
 
     def tab2UI(self):
         """
-        Tab split into 3 rows
+        Tab split into 2 rows
         """
         
-        #USER INTERFACE BUTTONS
-        top=QHBoxLayout()
+        #INTERFACE ROW
+        top_row2=QHBoxLayout()
         
         #Drop down menu for selecting detected images
-        imagedrop=QToolButton()
-        imagedrop.setMinimumHeight(50)
         dropdownSizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        imagedrop.setSizePolicy(dropdownSizePolicy)
-        imagedrop.setText('Select image')
         self.imagemenu = QMenu(self)
-        imagedrop.setMenu(self.imagemenu)
-        imagedrop.setPopupMode(QToolButton.InstantPopup)
-        top.addWidget(imagedrop)
-        
-        #Pushbutton for detecting images
-        detect=QPushButton("Detect")
-        detect.setMinimumHeight(50)
-        detect.clicked.connect(self.detectUSB)
-        top.addWidget(detect)
-        
-        #DEFINE DATA ROW
-        mid = QHBoxLayout()
-        
-        # Form layout is a nice way to contain multiple text input fields
-        input_form = QFormLayout()
-        self.id = QLineEdit()
-        input_form.addRow("Patient ID:", self.id)
-        mid.addLayout(input_form)
-
-        # Send button
-        self.sendimages = QPushButton("Send")
-        self.sendimages.setMinimumHeight(50)
-        #self.sendimages.clicked.connect(self.sendData)
-        mid.addWidget(self.sendimages)
-        
-        #DEFINE BOTTOM ROW
-        bottom = QHBoxLayout()
-        
-        #Image Widget
+        self.imagedrop=QToolButton()
+        self.imagedrop.setMinimumHeight(50)
+        self.imagedrop.setSizePolicy(dropdownSizePolicy)
+        self.imagedrop.setText('Select image')
+        self.imagedrop.setMenu(self.imagemenu)
+        self.imagedrop.setPopupMode(QToolButton.InstantPopup)
+        top_row2.addWidget(self.imagedrop)
+             
+        #DEFINE VISUAL ROW (IMAGE WIDGET)
+        visual_row2 = QHBoxLayout()
         self.image = QLabel()
         self.image.setAlignment(QtCore.Qt.AlignCenter)
-        bottom.addWidget(self.image)
+        visual_row2.addWidget(self.image)
         
-        ###define grid and layout###
-        layout = QGridLayout()
-        layout.addLayout(top,0,0)
-        layout.addLayout(mid,2,0)
-        layout.addLayout(bottom,1,0, QtCore.Qt.AlignCenter)
-        self.tab2.setLayout(layout)
-
-
+        #DEFINE GRID LAYOUT AND ADD INTERFACE/VISUAL ROWS
+        self.layout2 = QGridLayout()
+        self.layout2.addLayout(top_row2,0,0)
+        self.layout2.addLayout(visual_row2,1,0, QtCore.Qt.AlignCenter)
+        self.tab2.setLayout(self.layout2)
+        
+    def tab3UI(self):
+        pass
+        
+    
     def display(self, msg):
         print(msg)
         self.statusBar().showMessage(str(msg))
-
-
+        
+        
     def detect_ports(self):
         """
         Within detect_ports():
@@ -445,7 +433,17 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, e):
         if e.key() == QtCore.Qt.Key_Escape:
             self.close()
-
+            
+    def detectswitch(self):
+        current_tab = self.tabs.currentIndex() + 1 #add 1 to be consistent with tab numbers
+        if current_tab == 1:
+            self.detect_ports()
+        elif current_tab == 2:
+            self.detectUSB()
+        elif current_tab == 3:
+            self.display('Detecting Webcam...')
+            
+        
 if __name__ == '__main__':
     app = QApplication([])
     window = MainWindow()
