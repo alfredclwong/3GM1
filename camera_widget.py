@@ -2,8 +2,6 @@ import sys
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QLabel, QMainWindow, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
 #from models import Camera
-import pyqtgraph
-from pyqtgraph import ImageItem, ImageView
 from PyQt5.QtCore import Qt, QThread, QTimer
 import numpy as np
 import cv2

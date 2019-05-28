@@ -4,4 +4,4 @@ RPi setup instructions (from vanilla)
 1.  sudo apt-get install qt5-default pyqt5-dev pyqt5-dev-tools
     https://www.riverbankcomputing.com/static/Docs/PyQt5/installation.html
     (Building and Installing from Source - NOTE: use python3!!)
-2.  
+2.  pip3 install opencv-python; sudo apt-get install -y libcblas-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev  libqtgui4  libqt4-test

@@ -19,7 +19,7 @@ import time
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-#from camera_widget import camWidget, Camera
+from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -236,8 +236,8 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        #self.webcam = camWidget()
-        #self.layout3.addWidget(self.webcam)
+        self.webcam = camWidget()
+        self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
@@ -248,27 +248,13 @@ class MainWindow(QMainWindow):
         print(msg)
         self.statusBar().showMessage(str(msg))
         
-        
-    def detect_ports(self):
+    def detectUSBArduinos(self):
         """
-        Within detect_ports():
+        Within detectUSBArduinos():
         1. detect_ports connection
         2. Send header request ('A')
-        3. Create MedicalArduino() using header
-        
-        Outside detect_ports():
-        4. Send data requests according to sample rate
-        5. Update GUI?
+        3. Create USBArduino() using header
         """
-        # Close all currently open ports
-        for arduino in self.arduinos:
-            arduino.close()
-
-        # Update self.dropdown (via self.toolmenu) and self.arduinos
-        # TODO: submenus for each arduino and its data_labels in toolmenu
-        self.toolmenu.clear()
-        self.arduinos = []
-        
         # Scan through USB connections: serial.tools.list_ports.comports()
         for p in serial.tools.list_ports.comports():
             self.display("detected device at port {}".format(p.device))
@@ -295,8 +281,8 @@ class MainWindow(QMainWindow):
                 action.setCheckable(True)
                 action.setChecked(True)
         self.graph.plot(self.arduinos)
-        return
-        
+    
+    def detectBluetoothArduinos(self):
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
         nearby_devices = discover_devices(lookup_names=True)
@@ -332,6 +318,21 @@ class MainWindow(QMainWindow):
         # Replot graph such that the legend updates
         self.graph.plot(self.arduinos)
 
+    
+    def detect_ports(self):
+        # Close all currently open ports
+        for arduino in self.arduinos:
+            arduino.close()
+
+        # Update self.dropdown (via self.toolmenu) and self.arduinos
+        # TODO: submenus for each arduino and its data_labels in toolmenu
+        self.toolmenu.clear()
+        self.arduinos = []
+        
+        self.detectUSBArduinos()
+        #self.detectBluetoothArduinos()
+        
+        
     def start_stop(self):  # called when the start/stop button is clicked
         """
         Set up graph according to selected arduinos and start timer
@@ -388,6 +389,7 @@ class MainWindow(QMainWindow):
                 return
             
             # Extract data
+            # TODO data label repeat checking
             data = {}
             for arduino in self.arduinos:
                 for label in arduino.data_labels:
