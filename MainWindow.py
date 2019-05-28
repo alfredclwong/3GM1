@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import* #(QApplication, QMainWindow, QWidget, QDesktopWidge
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from bluetooth import *
+#from bluetooth import *
 import os
 import sys
 import random
@@ -19,7 +19,7 @@ import time
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-from camera_widget import camWidget, Camera
+#from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -62,6 +62,50 @@ class PlotCanvas(FigureCanvas):
         ax.set_ylim(min(lims), max(lims))
         self.draw()
 
+class NumberPadPopup(QWidget):
+    def __init__(self, mainwindow):
+        print('type mainwindow', type(mainwindow))
+        QWidget.__init__(self)
+        layout = QGridLayout()
+        self.button1 = QPushButton('1')
+        layout.addWidget(self.button1, 0,0)
+        self.button1.clicked.connect(lambda: mainwindow.addDigit("1"))
+        self.button2 = QPushButton('2')
+        layout.addWidget(self.button2, 0,1)
+        self.button2.clicked.connect(lambda: mainwindow.addDigit("2"))
+        self.button3 = QPushButton('3')
+        layout.addWidget(self.button3, 0,2)
+        self.button3.clicked.connect(lambda: mainwindow.addDigit("3"))
+        self.button4 = QPushButton('4')
+        layout.addWidget(self.button4, 1,0)
+        self.button4.clicked.connect(lambda: mainwindow.addDigit("4"))
+        self.button5 = QPushButton('5')
+        layout.addWidget(self.button5, 1,1)
+        self.button5.clicked.connect(lambda: mainwindow.addDigit("5"))
+        self.button6 = QPushButton('6')
+        layout.addWidget(self.button6, 1,2)
+        self.button6.clicked.connect(lambda: mainwindow.addDigit("6"))
+        self.button7 = QPushButton('7')
+        layout.addWidget(self.button7, 2,0)
+        self.button7.clicked.connect(lambda: mainwindow.addDigit("7"))
+        self.button8 = QPushButton('8')
+        layout.addWidget(self.button8, 2,1)
+        self.button8.clicked.connect(lambda: mainwindow.addDigit("8"))
+        self.button9 = QPushButton('9')
+        layout.addWidget(self.button9, 2,2)
+        self.button9.clicked.connect(lambda: mainwindow.addDigit("9"))
+        self.buttonBack = QPushButton('Delete')
+        layout.addWidget(self.buttonBack, 3,0)
+        self.buttonBack.clicked.connect(lambda: mainwindow.addDigit("back"))
+        self.button0 = QPushButton('0')
+        layout.addWidget(self.button0, 3,1)
+        self.button0.clicked.connect(lambda: mainwindow.addDigit("0"))
+        self.buttonEnter = QPushButton('Enter')
+        layout.addWidget(self.buttonEnter, 3,2)
+        self.buttonEnter.clicked.connect(lambda: self.close())
+        self.setWindowTitle('Number Pad')
+        self.setLayout(layout)
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -80,6 +124,19 @@ class MainWindow(QMainWindow):
         self.height = 480
         self.initUI()
         self.supportedfiles = ('.jpg','.png','pdf') #files supported by USB file detection
+        
+    def addDigit(self, digit):
+        if digit == "back":
+            self.patient_ID = self.patient_ID[:-1]
+        else:
+            self.patient_ID = self.patient_ID + digit
+        self.id.setText(self.patient_ID)
+        self.id.update()
+        
+    def openNumberPad(self):
+        self.display("Opening popup number pad...")
+        self.w = NumberPadPopup(self)
+        self.w.show()
 
     def initUI(self):
         #self.showFullScreen()
@@ -88,9 +145,16 @@ class MainWindow(QMainWindow):
         self.interface_row = QHBoxLayout()
         
         # Patient ID form -single patient ID form to avoid overwriting problem
-        self.id = QLineEdit()
+        self.patient_ID = "" 
+        self.id = QLabel()
+        self.id.setText('[Please enter ID]')
         self.input_form = QFormLayout()
-        self.input_form.addRow("Patient ID:", self.id)
+        self.input_ID_button = QPushButton("Input ID")
+        self.input_ID_button.clicked.connect(self.openNumberPad)
+        patient_ID_row = QHBoxLayout()
+        patient_ID_row.addWidget(self.id)
+        patient_ID_row.addWidget(self.input_ID_button)
+        self.input_form.addRow("Patient ID:", patient_ID_row)
         self.interface_row.addLayout(self.input_form)
         
         # Detect button -single detect button to act as switch based on current tab
@@ -226,13 +290,15 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        self.webcam = camWidget()
-        self.layout3.addWidget(self.webcam)
+        #self.webcam = camWidget()
+        #self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
     
     def display(self, msg):
+        print(type(self))
+        print(self)
         print(msg)
         self.statusBar().showMessage(str(msg))
         
@@ -362,9 +428,8 @@ class MainWindow(QMainWindow):
             print("Sending data to Xenplate...")
 
             # Read patient ID
-            print("Patient ID:", self.id.text())
-            patient_ID = self.id.text()
-            if patient_ID == "":
+            print("Patient ID:", self.patient_ID())
+            if self.patient_ID == "":
                 print("Error: no patient ID input!")
                 return
 
@@ -388,7 +453,7 @@ class MainWindow(QMainWindow):
                       {'name': 'Oxygen', 'value': data['Oxygen']}]
 
             # Look up Xenplate patient record using patient ID and create an entry
-            data_create(record_search(patient_ID),
+            data_create(record_search(self.patient_ID),
                         template_read_active_full(arduino.name),
                         values)
 
