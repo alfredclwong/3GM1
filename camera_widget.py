@@ -117,10 +117,12 @@ class camWidget(QWidget):
         try:
             frame = self.camera.get_frame()
             rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        except:
+        except: #catches error of crashing when camera disconnected
             print("Camera not detected")
             self.update_timer.stop()
             self.camera.close_camera()
+            self.camera.cap = None
+            self.captured_frame = None
             print("Camera closed")
             return
         #self.image_view.setImage(frame.T)
