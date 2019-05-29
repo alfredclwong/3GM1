@@ -54,12 +54,14 @@ class PlotCanvas(FigureCanvas):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
                     if len(data) == 0:  # avoid indexing an empty data list
-                        ax.plot(data, label="{}. {} [{}]".format(i+1, label, arduino.data_units[label]))
+                        ax.plot(data, label="{}. {}\t[{}]".format(i+1, label, arduino.data_units[label])
+                                                          .expandtabs())
                     else:
-                        ax.plot(data, label="{}. {} [{}] {}".format(i+1, label, arduino.data_units[label], data[-1]))
+                        ax.plot(data, label="{}. {}\t{}\t[{}]".format(i+1, label, data[-1], arduino.data_units[label])
+                                                              .expandtabs())
                     #ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
 
-        ax.legend(loc='upper left')
+        ax.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono'})
         lims = [data_range[:][0] for arduino in arduinos for data_range in arduino.data_ranges]
         lims += [data_range[:][1] for arduino in arduinos for data_range in arduino.data_ranges]
         ax.set_ylim(min(lims), max(lims))
@@ -392,10 +394,11 @@ class MainWindow(QMainWindow):
         #bluetooth_thread.join()
         
         # Register new arduinos in the GUI
-        for i, data_label in enumerate(arduino.data_labels):
-            action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
-            action.setCheckable(True)
-            action.setChecked(True)
+        for i, arduino in enumerate(self.arduinos):
+            for j, data_label in enumerate(arduino.data_labels):
+                action = self.toolmenu.addAction("{}. {}".format(i+1, data_label))
+                action.setCheckable(True)
+                action.setChecked(True)
         
         # Replot graph such that the legend updates
         self.graph.plot(self.arduinos)
