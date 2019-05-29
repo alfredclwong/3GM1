@@ -22,10 +22,22 @@ class BluetoothArduino(MedicalArduino):
         print("sampling bluetooth arduino")
         self.sock.send(b'B')
         data = b''
-        while True:
+        '''while True:
             data += self.sock.recv(1024)
             if data.endswith(b'\n'):
                 break
+        '''
+        self.sock.settimeout(2)
+        try:
+            while True:
+                d = self.sock.recv(255)
+                data += d
+                if d.find(b'\n') != -1:
+                    break
+        except Exception as err:
+            print(err)
+            pass
+        print(data)
         data = json.loads(data.decode())
         if not any(x == 0 for x in data.values()):
             for label in self.data_labels:

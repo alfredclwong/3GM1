@@ -21,7 +21,7 @@ class USBArduino(MedicalArduino):
         """
         print("sampling USB arduino")
         self.ser.write(b'B')
-        time.sleep(0.1)
+        time.sleep(0.01)
         self.ser.flush()
         while True:
             j = self.ser.readline()

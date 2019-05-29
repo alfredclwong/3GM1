@@ -413,6 +413,7 @@ class MainWindow(QMainWindow):
         
         # Replot graph such that the legend updates
         self.graph.plot(self.arduinos)
+        self.display("Done.")
         
     def start_stop(self):  # called when the start/stop button is clicked
         """
