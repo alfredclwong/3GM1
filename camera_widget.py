@@ -114,9 +114,16 @@ class camWidget(QWidget):
         """
         Called by QTimer at regular timeout signals
         """
-        frame = self.camera.get_frame()
+        try:
+            frame = self.camera.get_frame()
+            rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        except:
+            print("Camera not detected")
+            self.update_timer.stop()
+            self.camera.close_camera()
+            print("Camera closed")
+            return
         #self.image_view.setImage(frame.T)
-        rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         convertToQtFormat = QtGui.QImage(rgbImage.data, rgbImage.shape[1], rgbImage.shape[0],
                                          QtGui.QImage.Format_RGB888)
         convertToQtFormat = QtGui.QPixmap.fromImage(convertToQtFormat)
@@ -124,6 +131,8 @@ class camWidget(QWidget):
         resizeImage = pixmap.scaled(400, 300, QtCore.Qt.KeepAspectRatio)
         QApplication.processEvents()
         self.label.setPixmap(resizeImage)
+            
+            
         
 
 if __name__ == '__main__':
