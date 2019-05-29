@@ -17,7 +17,7 @@ SoftwareSerial BTserial(3, 4); // RX | TX
 
 uint32_t tsLastReport = 0;
 uint32_t tsElapsed = 0;
-char header[] = "{\"name\":\"SP02\",\"labels\":[\"Heart_rate\",\"Oxygen\"],\"data_units\":[\"bpm\",\"%\"],\"data_range\":[[0,200],[90,100]],\"sampling_rate\":1,\"Version\":\"1.0_Alpha\"}";
+char header[] = "{\"name\":\"SP02\",\"labels\":[\"Heart_rate\",\"Oxygen\"],\"data_units\":[\"bpm\",\"%\"],\"data_range\":[[0,200],[90,100]],\"sampling_rate\":10,\"Version\":\"1.0_Alpha\"}";
 
 // Callback (registered below) fired when a pulse is detected
 void onBeatDetected()
