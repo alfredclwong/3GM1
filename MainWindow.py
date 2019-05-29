@@ -349,7 +349,7 @@ class MainWindow(QMainWindow):
     def detectBluetoothArduinos(self):
         # Scan through Bluetooth connections
         self.display("scanning for nearby bluetooth devices...")
-        nearby_devices = discover_devices(lookup_names=True)
+        nearby_devices = discover_devices(duration=4, lookup_names=True)
         print(nearby_devices)
         for i, (addr, name) in enumerate(nearby_devices):
             if name not in bluetooth_devices or addr in blacklist:
@@ -360,7 +360,7 @@ class MainWindow(QMainWindow):
             try:
                 sock.connect((addr, bluetooth_port))
             except btcommon.BluetoothError as err:
-                print(err)
+                self.display(err)
                 continue
             sock.send('A')
             data = b''
@@ -386,12 +386,15 @@ class MainWindow(QMainWindow):
         self.toolmenu.clear()
         self.arduinos = []
         
-        usb_thread = threading.Thread(target=self.detectUSBArduinos)
-        usb_thread.start()
+        #usb_thread = threading.Thread(target=self.detectUSBArduinos)
+        #usb_thread.start()
         #bluetooth_thread = threading.Thread(target=self.detectBluetoothArduinos)
         #bluetooth_thread.start()
-        usb_thread.join()
+        #usb_thread.join()
         #bluetooth_thread.join()
+        
+        self.detectUSBArduinos()
+        #self.detectBluetoothArduinos()
         
         # Register new arduinos in the GUI
         for i, arduino in enumerate(self.arduinos):
