@@ -1,11 +1,11 @@
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import* #(QApplication, QMainWindow, QWidget, QDesktopWidget, QSizePolicy,
+from PyQt5.QtWidgets import * #(QApplication, QMainWindow, QWidget, QDesktopWidget, QSizePolicy,
                              #QGridLayout, QHBoxLayout, QFormLayout,
                              #QToolButton, QAction, QMenu, QPushButton, QLineEdit)
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from bluetooth import *
+#from bluetooth import *
 import os
 import sys
 import random
@@ -20,7 +20,7 @@ import threading
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-from camera_widget import camWidget, Camera
+#from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -119,6 +119,7 @@ class MainWindow(QMainWindow):
         """
         super(MainWindow, self).__init__(parent)
         self.showFullScreen()
+        self.setWindowIcon(QtGui.QIcon('icon_logo.png'))
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
         self.arduinos = []
