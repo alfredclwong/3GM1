@@ -20,7 +20,7 @@ class BluetoothArduino(MedicalArduino):
         null value was read or if the data series are not 'checked' in the GUI).
         """
         print("sampling bluetooth arduino")
-        self.sock.send('B')
+        self.sock.send(b'B')
         data = b''
         while True:
             data += self.sock.recv(1024)

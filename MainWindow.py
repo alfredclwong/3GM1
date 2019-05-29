@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import * #(QApplication, QMainWindow, QWidget, QDesktopWidg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-#from bluetooth import *
+from bluetooth import *
 import os
 import sys
 import random
@@ -20,7 +20,7 @@ import threading
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-#from camera_widget import camWidget, Camera
+from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -64,7 +64,8 @@ class PlotCanvas(FigureCanvas):
         ax.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono'})
         lims = [data_range[:][0] for arduino in arduinos for data_range in arduino.data_ranges]
         lims += [data_range[:][1] for arduino in arduinos for data_range in arduino.data_ranges]
-        ax.set_ylim(min(lims), max(lims))
+        if len(lims) != 0:
+            ax.set_ylim(min(lims), max(lims))
         self.draw()
 
 class NumberPadPopup(QWidget):
@@ -339,8 +340,11 @@ class MainWindow(QMainWindow):
                 j = ser.readline()
                 if j.endswith(b'\n'):
                     break
-            header = json.loads(j.decode())
-            print(header)
+            try:
+                header = json.loads(j.decode())
+                print(header)
+            except:
+                continue
 
             # Create a new USBArduino using this information
             arduino = USBArduino(ser, header)
@@ -363,10 +367,13 @@ class MainWindow(QMainWindow):
             except btcommon.BluetoothError as err:
                 self.display(err)
                 continue
-            sock.send('A')
+            time.sleep(1)
+            sock.send(b'A')
+            time.sleep(0.1)
             data = b''
             while True:
                 data += sock.recv(1024)
+                print(data)
                 if data.endswith(b'\n'):
                     break
             header = json.loads(data.decode())
@@ -395,7 +402,7 @@ class MainWindow(QMainWindow):
         #bluetooth_thread.join()
         
         self.detectUSBArduinos()
-        #self.detectBluetoothArduinos()
+        self.detectBluetoothArduinos()
         
         # Register new arduinos in the GUI
         for i, arduino in enumerate(self.arduinos):
@@ -532,6 +539,8 @@ class MainWindow(QMainWindow):
         Closes window by pressing -esc key
         """
         if e.key() == QtCore.Qt.Key_Escape:
+            for arduino in self.arduinos:
+                arduino.close()
             self.close()
             
     def detectswitch(self):

@@ -27,13 +27,14 @@ class Login(QtWidgets.QDialog):
         self.buttonScan.setMinimumHeight(50)
         self.logo = QtWidgets.QLabel(self)
         pixmap = QtGui.QPixmap('main_logo.png')
+        pixmap = pixmap.scaled(280, 140, Qt.KeepAspectRatio)
         self.logo.setPixmap(pixmap)
         self.logo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.logo.setAlignment(Qt.AlignCenter)
 
         # Optional, resize window to image size
-        # self.logo.resize(pixmap.width(),pixmap.height())
-        
+        #self.showFullScreen()
+
         # Initialise layout and add widgets
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.logo)
