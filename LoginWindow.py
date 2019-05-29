@@ -6,6 +6,7 @@ from MainWindow import MainWindow
 import sys
 import serial
 import time
+from hex_hash import *
 
 # This dictionary shows admin and user cards
 ValidCards = {'admin':b'78 , 242 , 84 , 78\r\n'}
@@ -17,13 +18,20 @@ class Login(QtWidgets.QDialog):
         """
         super(Login, self).__init__(parent)
         
+        # Verify card reader hash
+        ser = self.connectArduino()
+        port = ser.name
+        ser.close()
+        if not verify_arduino(port):
+            print("WARNING: unverified card reader connected! This is a security risk.")
+            sys.exit()
+
         # Set icon and title
         self.setWindowIcon(QIcon('icon_logo.png'))
         self.setWindowTitle("Login Window")
         
         # Initialise scan button and logo image
-        self.buttonScan = QtWidgets.QPushButton('Tap here and then present your Security Card', self)
-        self.buttonScan.clicked.connect(self.scanAndCheck)
+        self.buttonScan = QtWidgets.QPushButton('Verifying card reader...', self)
         self.buttonScan.setMinimumHeight(50)
         self.logo = QtWidgets.QLabel(self)
         pixmap = QtGui.QPixmap('main_logo.png')
@@ -39,6 +47,9 @@ class Login(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.logo)
         layout.addWidget(self.buttonScan)
+
+        self.buttonScan.setText('Tap here and then present your Security Card')
+        self.buttonScan.clicked.connect(self.scanAndCheck)
 
     def checkForCards(self):
         """
