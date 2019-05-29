@@ -39,8 +39,9 @@ class Camera:
 
 class camWidget(QWidget):
     
-    def __init__(self):
+    def __init__(self,mainwindow):
         super().__init__()
+        self.main=mainwindow
         self.initUI()
         
         
@@ -85,6 +86,7 @@ class camWidget(QWidget):
         """
         self.camera.initialize()
         self.start_feed()
+        self.main.display("Camera Ready")
         
     
     def start_feed(self):
@@ -99,31 +101,33 @@ class camWidget(QWidget):
         Called by 'Capture' button
         1. Resets text on capture button to 'Retake', stops timer and stores frame
         2. OR if 'Retake' - restarts timer and changes text back
-        
         """
         if (self.sender().text() == 'Capture') and (self.update_timer.isActive()):
             self.capturebutton.setText('Retake')
             self.update_timer.stop()
             self.captured_frame = self.camera.last_frame.T  #<class 'numpy.ndarray'>
             cv2.imwrite('captured_frame.jpg',self.captured_frame.T)
+            self.main.display("Image taken")
         elif self.sender().text() == 'Retake':
             self.start_feed()
+            self.main.display("Camera Ready")
             self.capturebutton.setText('Capture')
     
     def update_image(self):
         """
         Called by QTimer at regular timeout signals
+        Tries to grab current frame and display in QPixmap. If failed, throws exception.
         """
         try:
             frame = self.camera.get_frame()
             rgbImage = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         except: #catches error of crashing when camera disconnected
-            print("Camera not detected")
-            self.update_timer.stop()
             self.camera.close_camera()
             self.camera.cap = None
             self.captured_frame = None
-            print("Camera closed")
+            self.capturebutton.setText('Capture')
+            self.main.display("Camera not found")
+            self.update_timer.stop()
             return
         #self.image_view.setImage(frame.T)
         convertToQtFormat = QtGui.QImage(rgbImage.data, rgbImage.shape[1], rgbImage.shape[0],

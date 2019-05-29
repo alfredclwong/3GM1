@@ -307,7 +307,7 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        self.webcam = camWidget()
+        self.webcam = camWidget(self)
         self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
@@ -557,7 +557,7 @@ class MainWindow(QMainWindow):
         elif current_tab == 2:
             self.detectUSB()
         elif current_tab == 3:
-            self.display('Detecting Webcam...')
+            self.display('Detecting camera...')
             self.webcam.setup()
             
             
