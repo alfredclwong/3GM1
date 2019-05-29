@@ -53,9 +53,11 @@ class PlotCanvas(FigureCanvas):
         for i, arduino in enumerate(arduinos):
             for label, data in arduino.data.items():
                 if arduino.active_data[label]:
-                    ax.plot(data, label="{}. {} [{}] {}".format(i+1, label, arduino.data_units[label], data[-1]))
-                    """if len(data) == 0: continue
-                    ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')"""
+                    if len(data) == 0:  # avoid indexing an empty data list
+                        ax.plot(data, label="{}. {} [{}]".format(i+1, label, arduino.data_units[label]))
+                    else:
+                        ax.plot(data, label="{}. {} [{}] {}".format(i+1, label, arduino.data_units[label], data[-1]))
+                    #ax.annotate(str(data[-1]), xy=(len(data)-1,data[-1]), xytext=(0,0), textcoords='offset points')
 
         ax.legend(loc='upper left')
         lims = [data_range[:][0] for arduino in arduinos for data_range in arduino.data_ranges]
@@ -341,11 +343,6 @@ class MainWindow(QMainWindow):
             arduino = USBArduino(ser, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
-            for i, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
-                action.setCheckable(True)
-                action.setChecked(True)
-        self.graph.plot(self.arduinos)
     
     def detectBluetoothArduinos(self):
         # Scan through Bluetooth connections
@@ -376,14 +373,6 @@ class MainWindow(QMainWindow):
             arduino = BluetoothArduino(sock, header)
             self.arduinos.append(arduino)
             self.prevs.append(0) # such that data will be requested on '>/=' click
-            for j, data_label in enumerate(arduino.data_labels):
-                action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
-                action.setCheckable(True)
-                action.setChecked(True)
-        
-        # Replot graph such that the legend updates
-        self.graph.plot(self.arduinos)
-
     
     def detect_ports(self):
         # Close all currently open ports
@@ -401,6 +390,15 @@ class MainWindow(QMainWindow):
         #bluetooth_thread.start()
         usb_thread.join()
         #bluetooth_thread.join()
+        
+        # Register new arduinos in the GUI
+        for i, data_label in enumerate(arduino.data_labels):
+            action = self.toolmenu.addAction("{}. {}".format(len(self.arduinos), data_label))
+            action.setCheckable(True)
+            action.setChecked(True)
+        
+        # Replot graph such that the legend updates
+        self.graph.plot(self.arduinos)
         
     def start_stop(self):  # called when the start/stop button is clicked
         """
