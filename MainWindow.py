@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import * #(QApplication, QMainWindow, QWidget, QDesktopWidg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from bluetooth import *
+#from bluetooth import *
 import os
 import sys
 import random
@@ -20,7 +20,7 @@ import threading
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-from camera_widget import camWidget, Camera
+#from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -70,9 +70,15 @@ class PlotCanvas(FigureCanvas):
 
 class NumberPadPopup(QWidget):
     def __init__(self, mainwindow):
-        print('type mainwindow', type(mainwindow))
+        """
+        Initialise the Number Pad popup with each button and it's connection to 'AddDigit'
+        """
         QWidget.__init__(self)
+        
+        # Define the grid layout
         layout = QGridLayout()
+        
+        # Create the buttons, add them to the layout and define their clicked link
         self.button1 = QPushButton('1')
         layout.addWidget(self.button1, 0,0)
         self.button1.clicked.connect(lambda: mainwindow.addDigit("1"))
@@ -110,6 +116,8 @@ class NumberPadPopup(QWidget):
         layout.addWidget(self.buttonEnter, 3,2)
         self.buttonEnter.clicked.connect(lambda: self.close())
         self.setWindowTitle('Number Pad')
+        
+        # Set the number pad layout
         self.setLayout(layout)
 
 class MainWindow(QMainWindow):
@@ -119,7 +127,7 @@ class MainWindow(QMainWindow):
         Constructor for the QMainWindow, also containing constants and variables used throughout the class.
         """
         super(MainWindow, self).__init__(parent)
-        self.showFullScreen()
+        #self.showFullScreen()
         self.setWindowIcon(QtGui.QIcon('icon_logo.png'))
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
@@ -136,16 +144,26 @@ class MainWindow(QMainWindow):
         self.height = 480
         self.initUI()
         self.supportedfiles = ('.jpg','.png','pdf') #files supported by USB file detection
+        self.selected_image = None
         
     def addDigit(self, digit):
+        """
+        Adds a digit to the 'patient_ID' or removes the last digit if 'back' was pressed and then updates the QtLabel on the GUI
+        """
+        # Work out if 'back' or a digit was pressed and change patient_ID accordingly
         if digit == "back":
             self.patient_ID = self.patient_ID[:-1]
         else:
             self.patient_ID = self.patient_ID + digit
+        
+        # Update the GUI with the new patient_ID
         self.id.setText(self.patient_ID)
         self.id.update()
         
     def openNumberPad(self):
+        """
+        Tell user that number pad is opening and then open the number pad popup window
+        """
         self.display("Opening popup number pad...")
         self.w = NumberPadPopup(self)
         self.w.show()
@@ -183,7 +201,7 @@ class MainWindow(QMainWindow):
         # Send button - single send button to act as switch based on current tab
         self.send = QPushButton("Send")
         self.send.setMinimumHeight(50)
-        self.send.clicked.connect(self.sendData)
+        self.send.clicked.connect(self.sendDataSwitch)
         self.interface_row.addWidget(self.send)
         
         #TABS WIDGET
@@ -307,8 +325,8 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        self.webcam = camWidget(self)
-        self.layout3.addWidget(self.webcam)
+        #self.webcam = camWidget(self)
+        #self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
@@ -449,10 +467,12 @@ class MainWindow(QMainWindow):
                 self.graph.plot(self.arduinos)
                 self.prevs[i] = time.time()
 
-    def sendData(self):  # called when the send button is clicked
+    def sendDataTimeSeries(self):  # called when the send button is clicked
         """
         1. Read patient ID from GUI text field
         2. Extract data from MedicalArduino list
+        3. Send data to Xenplate
+        (This is for time series data)
         """
         if not self.timer.isActive():
             print("Sending data to Xenplate...")
@@ -493,6 +513,38 @@ class MainWindow(QMainWindow):
         else:
             print("Recording still ongoing - end recording before sending data")
 
+    def sendDataFile(self, file_name):  # called when the send button is clicked
+        """
+        1. Read patient ID from GUI text field
+        2. Extract data from MedicalArduino list
+        3. Send data to Xenplate
+        (This is for file/image data)
+        """
+        print("Sending data to Xenplate...")
+
+        # Read patient ID
+        print("Patient ID:", self.patient_ID)
+        if self.patient_ID == "":
+            print("Error: no patient ID input!")
+            return
+
+        # find file_key
+        with open('main_logo.png', 'rb') as content_file:
+            content = content_file.read()
+            file_key = file_create(content, 'main_logo.png')
+            
+        # set the data to push
+        valuesImage = [{'name': 'FileUpload1', 'value':  file_name, 'attachments': [{'description': 'image1', 'key': file_key, 'original_file_name': file_name, 'saved_date_time': to_long_time(datetime(2019,5,29))}]}]
+            
+
+        # Look up Xenplate patient record using patient ID and create an entry
+        data_create(record_search(self.patient_ID),
+                    template_read_active_full('Image_test'),
+                    values)
+
+        #self.graph.getPlotItem().clear()
+        print("Sent.")
+
 
     def showimage(self): #called when image from dropdown menu selected
         """
@@ -501,6 +553,7 @@ class MainWindow(QMainWindow):
         """
         action=self.sender()
         path = action.text()
+        self.selected_image = path
         self.display(path + ' selected')
         if path.endswith('pdf'):
             path='pdf_logo.jpg'
@@ -560,6 +613,21 @@ class MainWindow(QMainWindow):
             self.display('Detecting camera...')
             self.webcam.setup()
             
+    def sendDataSwitch(self):
+        """
+        Switches function of "Send" button depending on current tab open
+        tab1: sends time series data
+        tab2: sends the file loaded
+        tab3: sends the last capture
+        """
+        current_tab = self.tabs.currentIndex() + 1 #add 1 to be consistent with tab numbers
+        if current_tab == 1:
+            self.sendDataTimeSeries()
+        elif current_tab == 2 or 3:
+            if self.selected_image:
+                self.sendDataFile(self.selected_image)
+            else:
+                self.display("No image selected")
             
         
 if __name__ == '__main__':
