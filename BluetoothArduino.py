@@ -27,7 +27,7 @@ class BluetoothArduino(MedicalArduino):
             if data.endswith(b'\n'):
                 break
         '''
-        self.sock.settimeout(2)
+        #self.sock.settimeout(2)
         try:
             while True:
                 d = self.sock.recv(255)

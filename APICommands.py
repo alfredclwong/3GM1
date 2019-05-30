@@ -104,7 +104,7 @@ def file_create(file_content, content_type):
     headers = get_api_key_header(_user_api_key)
     headers['Content-Type'] = content_type
 
-    resp = requests.post(f'{API_URI}/file/create',
+    resp = requests.post('{}/file/create'.format(API_URI),
                         #files={'file': file_content},  # Can't currently use multipart file encoding
                         data=file_content,
                         headers=headers,
@@ -119,7 +119,8 @@ def file_create(file_content, content_type):
 
 def user_authenticate(username, password):
 
-    resp = requests.get(f'{API_URI}/user/authenticate?user_name={username}&password={password}',
+    resp = requests.get('{}/user/authenticate?user_name={}&password={}'
+                        .format(API_URI, username, password),
                         headers=get_api_key_header(API_KEY),
                         cert=_cert)
 
@@ -128,7 +129,7 @@ def user_authenticate(username, password):
     response_json = resp.json()
 
     status = response_json['UserAuthenticateResult']['status']
-    print(f"UserAuthenticate Status={status}")
+    print("UserAuthenticate Status={}".format(status))
 
     if status != 0: return
 

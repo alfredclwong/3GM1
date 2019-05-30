@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         Constructor for the QMainWindow, also containing constants and variables used throughout the class.
         """
         super(MainWindow, self).__init__(parent)
-        #self.showFullScreen()
+        self.showFullScreen()
         self.setWindowIcon(QtGui.QIcon('icon_logo.png'))
 
         # Other stuff - for keeping track of MedicalArduino instances and timing
@@ -401,9 +401,9 @@ class MainWindow(QMainWindow):
             except btcommon.BluetoothError as err:
                 self.display(err)
                 continue
-            time.sleep(1)
+            #time.sleep(1)
             sock.send(b'A')
-            time.sleep(0.1)
+            #time.sleep(0.1)
             data = b''
             while True:
                 data += sock.recv(1024)
@@ -491,18 +491,18 @@ class MainWindow(QMainWindow):
         (This is for time series data)
         """
         if not self.timer.isActive():
-            print("Sending data to Xenplate...")
+            self.display("Sending data to Xenplate...")
 
             # Read patient ID
             print("Patient ID:", self.patient_ID)
             if self.patient_ID == "":
-                print("Error: no patient ID input!")
+                self.display("Error: no patient ID input!")
                 return
 
             # Check for no data
             if not any(any(len(medicaldata) > 0 for medicaldata in arduino.data)
                        for arduino in self.arduinos):
-                print("No data to send!")
+                self.display("No data to send!")
                 return
             
             # Extract data
@@ -525,9 +525,9 @@ class MainWindow(QMainWindow):
                         values)
 
             #self.graph.getPlotItem().clear()
-            print("Sent.")
+            self.display("Sent.")
         else:
-            print("Recording still ongoing - end recording before sending data")
+            self.display("Recording still ongoing - end recording before sending data")
 
     def sendDataFile(self, file_name):  # called when the send button is clicked
         """
@@ -536,12 +536,12 @@ class MainWindow(QMainWindow):
         3. Send data to Xenplate
         (This is for file/image data)
         """
-        print("Sending data to Xenplate...")
+        self.display("Sending data to Xenplate...")
 
         # Read patient ID
         print("Patient ID:", self.patient_ID)
         if self.patient_ID == "":
-            print("Error: no patient ID input!")
+            self.display("Error: no patient ID input!")
             return
         print(file_name)
 
@@ -559,7 +559,7 @@ class MainWindow(QMainWindow):
                     template_read_active_full('Image_test'),
                     values)
         self.display("File sent")
-        print("Sent.")
+        #self.display("Sent.")
 
 
     def showimage(self): #called when image from dropdown menu selected
@@ -586,8 +586,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        #for root, dirs, files in os.walk(usb_dir):
+        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))
