@@ -72,7 +72,7 @@ def data_create(record_id, template_id, control_values: list):
                          headers=get_api_key_header(_user_api_key),
                          cert=_cert)
 
-    if print_status(resp): return
+    if print_status(resp): return 
 
     response_json = resp.json()
 
@@ -99,3 +99,52 @@ def template_read_active_full(plate_template_name):
         return
 
     return response_json['PlateTemplateReadActiveByIdNameResult']['plate_template']['id']
+
+def file_create(file_content, content_type):
+    headers = get_api_key_header(_user_api_key)
+    headers['Content-Type'] = content_type
+
+    resp = requests.post(f'{API_URI}/file/create',
+                        #files={'file': file_content},  # Can't currently use multipart file encoding
+                        data=file_content,
+                        headers=headers,
+                        cert=_cert)
+
+    if print_status(resp): return
+
+    response_json = resp.json()
+
+    return response_json['FileCreateResult']['file_id']
+    
+
+def user_authenticate(username, password):
+
+    resp = requests.get(f'{API_URI}/user/authenticate?user_name={username}&password={password}',
+                        headers=get_api_key_header(API_KEY),
+                        cert=_cert)
+
+    if print_status(resp): return
+
+    response_json = resp.json()
+
+    status = response_json['UserAuthenticateResult']['status']
+    print(f"UserAuthenticate Status={status}")
+
+    if status != 0: return
+
+    # pprint(response_json['UserAuthenticateResult'])
+
+    global _user_api_key
+    _user_api_key = response_json['UserAuthenticateResult']['api_key']
+
+    global _key_plate_template_id
+    _key_plate_template_id = response_json['UserAuthenticateResult']['key_plate_template_id']
+
+    global _key_plate_data_id
+    _key_plate_data_id = response_json['UserAuthenticateResult']['key_plate_data_id']
+
+    global _record_id
+    _record_id = response_json['UserAuthenticateResult']['record_id']
+
+    global _user_id
+    _user_id = response_json['UserAuthenticateResult']['user_id']

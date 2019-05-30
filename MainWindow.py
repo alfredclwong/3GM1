@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import * #(QApplication, QMainWindow, QWidget, QDesktopWidg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-#from bluetooth import *
+from bluetooth import *
 import os
 import sys
 import random
@@ -20,7 +20,7 @@ import threading
 from USBArduino import USBArduino
 from BluetoothArduino import BluetoothArduino
 from APICommands import *
-#from camera_widget import camWidget, Camera
+from camera_widget import camWidget, Camera
 
 baudrate = 9600
 blacklist = ["20:15:03:03:08:43"]
@@ -117,6 +117,20 @@ class NumberPadPopup(QWidget):
         self.buttonEnter.clicked.connect(lambda: self.close())
         self.setWindowTitle('Number Pad')
         
+        self.button1.setMinimumHeight(50)
+        self.button2.setMinimumHeight(50)
+        self.button3.setMinimumHeight(50)
+        self.button4.setMinimumHeight(50)
+        self.button5.setMinimumHeight(50)
+        self.button6.setMinimumHeight(50)
+        self.button7.setMinimumHeight(50)
+        self.button8.setMinimumHeight(50)
+        self.button9.setMinimumHeight(50)
+        self.buttonBack.setMinimumHeight(50)
+        self.button0.setMinimumHeight(50)
+        self.buttonEnter.setMinimumHeight(50)
+        
+        
         # Set the number pad layout
         self.setLayout(layout)
 
@@ -186,8 +200,10 @@ class MainWindow(QMainWindow):
         self.input_form = QFormLayout()
         self.input_ID_button = QPushButton("Input ID")
         self.input_ID_button.clicked.connect(self.openNumberPad)
+        #self.input_ID_button.setMinimumHeight(50)
         patient_ID_row = QHBoxLayout()
         patient_ID_row.addWidget(self.id)
+        patient_ID_row.addStretch(1)
         patient_ID_row.addWidget(self.input_ID_button)
         self.input_form.addRow("Patient ID:", patient_ID_row)
         self.interface_row.addLayout(self.input_form)
@@ -325,8 +341,8 @@ class MainWindow(QMainWindow):
         """
         self.layout3 = QVBoxLayout()
         #initialise custom webcam widget
-        #self.webcam = camWidget(self)
-        #self.layout3.addWidget(self.webcam)
+        self.webcam = camWidget(self)
+        self.layout3.addWidget(self.webcam)
         self.tab3.setLayout(self.layout3)
         
         
@@ -527,22 +543,22 @@ class MainWindow(QMainWindow):
         if self.patient_ID == "":
             print("Error: no patient ID input!")
             return
+        print(file_name)
 
         # find file_key
-        with open('main_logo.png', 'rb') as content_file:
+        with open(file_name, 'rb') as content_file:
             content = content_file.read()
-            file_key = file_create(content, 'main_logo.png')
+            file_key = file_create(content, file_name)
             
         # set the data to push
-        valuesImage = [{'name': 'FileUpload1', 'value':  file_name, 'attachments': [{'description': 'image1', 'key': file_key, 'original_file_name': file_name, 'saved_date_time': to_long_time(datetime(2019,5,29))}]}]
+        values = [{'name': 'FileUpload1', 'value':  file_name, 'attachments': [{'description': 'image1', 'key': file_key, 'original_file_name': file_name, 'saved_date_time': to_long_time(datetime(2019,5,29))}]}]
             
 
         # Look up Xenplate patient record using patient ID and create an entry
         data_create(record_search(self.patient_ID),
                     template_read_active_full('Image_test'),
                     values)
-
-        #self.graph.getPlotItem().clear()
+        self.display("File sent")
         print("Sent.")
 
 
@@ -570,8 +586,8 @@ class MainWindow(QMainWindow):
         """
         self.imagemenu.clear()
         self.imagelist=[]
-        #for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
-        for root, dirs, files in os.walk(usb_dir):
+        for root, dirs, files in os.walk(os.getcwd()): #temporary for PC
+        #for root, dirs, files in os.walk(usb_dir):
             for filename in files:
                 if filename.endswith(self.supportedfiles): #edit this line for supported file formats
                     self.imagelist.append(os.path.join(root,filename))

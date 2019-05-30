@@ -106,6 +106,7 @@ class camWidget(QWidget):
             self.capturebutton.setText('Retake')
             self.update_timer.stop()
             self.captured_frame = self.camera.last_frame.T  #<class 'numpy.ndarray'>
+            self.main.selected_image = 'captured_frame.jpg'
             cv2.imwrite('captured_frame.jpg',self.captured_frame.T)
             self.main.display("Image taken")
         elif self.sender().text() == 'Retake':
